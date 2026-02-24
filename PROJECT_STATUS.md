@@ -258,7 +258,13 @@ VITE_API_URL
 #### 35. Keep-alive
 - ✅ Frontend: `fetch('/health')` кожні 10 хв (MainLayout.jsx)
 - ✅ `.github/workflows/keep-alive.yml` — GitHub Actions cron `*/10 * * * *` → curl /health
-- Рекомендовано: UptimeRobot (безкоштовно, 5 хв інтервал, email сповіщення при падінні)
+- ✅ UptimeRobot — налаштовано, пінг кожні 5 хв, моніторинг uptime
+
+#### 36. CI/CD — повне налаштування
+- ✅ GitHub Actions secrets додано (5 шт): `RENDER_DEPLOY_HOOK_URL`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VITE_API_URL`
+- ✅ Виправлено `deploy.yml`: прибрано `working-directory: ./frontend` — конфліктувало з `rootDirectory: frontend` на Vercel (CLI запускався з `frontend/`, Vercel знову застосовував `rootDirectory` → шукав `vercel.json` в `frontend/frontend/`)
+- ✅ Обидва jobs зелені: `Deploy Backend (Render)` + `Deploy Frontend (Vercel)`
+- **Результат**: кожен `git push origin main` → автоматичний деплой backend (Render) + frontend (Vercel)
 
 ---
 
@@ -353,23 +359,58 @@ npm start
 
 ## Плани розвитку
 
-### Найближчі пріоритети
-1. **UptimeRobot** — налаштувати моніторинг (5 хвилин)
-2. **Telegram** — налаштувати сповіщення в production
-3. **GitHub Actions secrets** — додати для повного CI/CD pipeline
+### ★ ЗАВТРА ПОЧИНАТИ З ЦЬОГО
 
-### Середньострокові
-1. **Сортування** — по колонках у таблицях
-2. **Audit Trail UI** — перегляд хто що змінив
-3. **Імпорт з Excel** — масове завантаження початкових даних
+#### Пріоритет 1 — Audit Trail UI (хто що змінив, коли)
+**Що є вже зараз:**
+- ✅ Модель `AuditLog` в `backend/app/models/audit.py` — таблиця існує
+- ✅ Дані пишуться (перевірити чи пишуться при підтвердженнях)
 
-### Довгострокові
-1. **Telegram бот з кнопками** — FSM діалоги для переміщень та списань
-2. **Бюджетування** — планування закупівель, контроль бюджету по підрозділах
-3. **PWA / мобільний** — QR-сканування
+**Що потрібно зробити:**
+- [ ] Backend: `GET /api/v1/audit/` з фільтрами (user, action, date, entity)
+- [ ] Frontend: сторінка "Журнал змін" — таблиця з колонками: Дата/час | Користувач | Дія | Об'єкт | Деталі
+- [ ] Додати в меню (тільки admin)
+
+**Складність**: середня | **Цінність**: висока (хто і коли підтвердив списання, змінив дані)
 
 ---
 
-**Останнє оновлення**: 2026-02-24 (сесія 9 — деплой production, функціональна 100%)
+#### Пріоритет 2 — Імпорт з Excel
+**Що потрібно:**
+- [ ] Backend: `POST /api/v1/products/import` — читає xlsx, створює товари пакетно
+- [ ] Backend: `POST /api/v1/suppliers/import` — те саме для постачальників
+- [ ] Frontend: кнопка "Імпорт Excel" + drag-and-drop + preview перед збереженням
+- [ ] Шаблон Excel для завантаження (правильні колонки)
+
+**Складність**: середня | **Цінність**: висока (початкове завантаження даних клієнта)
+
+---
+
+#### Пріоритет 3 — Telegram бот з кнопками
+**Що потрібно:**
+- [ ] `pip install python-telegram-bot>=20`
+- [ ] `backend/app/telegram_bot/` — bot.py, handlers.py, api_client.py, states.py
+- [ ] ConversationHandler: Перемістити / Списати / Залишки / Скасувати
+- [ ] Окремий процес: `backend/run_bot.py`
+- [ ] Render: окремий Worker сервіс (або thread в main.py)
+
+**Складність**: висока | **Цінність**: висока (робота зі складу з телефону без браузера)
+
+---
+
+### Виконано (закрито)
+- ✅ UptimeRobot — налаштовано (5 хв пінг)
+- ✅ GitHub Actions secrets — всі 5 додано
+- ✅ CI/CD повністю робочий (обидва jobs зелені)
+- ✅ Keep-alive — GitHub Actions cron + UptimeRobot
+
+### Довгострокові
+1. **Бюджетування** — планування закупівель, контроль бюджету по підрозділах
+2. **PWA / мобільний** — QR-сканування
+3. **Сортування таблиць** — клік по заголовку колонки
+
+---
+
+**Останнє оновлення**: 2026-02-24 (сесія 10 — CI/CD fix, UptimeRobot, keep-alive, завтрашні пріоритети)
 **Версія**: 0.7.0
-**Статус**: ✅ Production Live
+**Статус**: ✅ Production Live | CI/CD ✅ | Моніторинг ✅
