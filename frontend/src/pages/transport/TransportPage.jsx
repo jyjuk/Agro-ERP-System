@@ -81,7 +81,8 @@ const TransportPage = () => {
       setDialogOpen(false)
       load()
     } catch (e) {
-      showSnack('Помилка збереження', 'error')
+      const msg = e?.response?.data?.detail || e?.message || 'Помилка збереження'
+      showSnack(msg, 'error')
     }
   }
 

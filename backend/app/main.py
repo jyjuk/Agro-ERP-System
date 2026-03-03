@@ -9,6 +9,36 @@ from app.models import user, supplier, product, purchase, inventory, transfer, w
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
+
+def _run_schema_migrations():
+    """Додає нові колонки до існуючих таблиць (idempotent)."""
+    try:
+        from sqlalchemy import inspect as sa_inspect, text
+        from sqlalchemy.exc import NoSuchTableError
+        insp = sa_inspect(engine)
+        try:
+            cols = [c['name'] for c in insp.get_columns('transport_units')]
+        except NoSuchTableError:
+            return  # таблиця ще не існує — create_all вже її створить з новими колонками
+        if 'department_id' not in cols:
+            with engine.begin() as conn:
+                try:
+                    # PostgreSQL 9.6+ / SQLite 3.37+
+                    conn.execute(text(
+                        "ALTER TABLE transport_units ADD COLUMN IF NOT EXISTS "
+                        "department_id INTEGER REFERENCES departments(id)"
+                    ))
+                except Exception:
+                    # Fallback для старих SQLite без IF NOT EXISTS
+                    conn.execute(text(
+                        "ALTER TABLE transport_units ADD COLUMN department_id INTEGER"
+                    ))
+    except Exception:
+        pass  # не валимо застосунок через міграцію
+
+
+_run_schema_migrations()
+
 # Create FastAPI app
 app = FastAPI(
     title=settings.PROJECT_NAME,
