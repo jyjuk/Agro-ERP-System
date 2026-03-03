@@ -40,6 +40,7 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess, editPurchase }) => {
   const [items, setItems] = useState([emptyItem])
 
   const isEdit = Boolean(editPurchase)
+  const isConfirmed = editPurchase?.status === 'confirmed'
 
   useEffect(() => {
     if (open) {
@@ -123,12 +124,15 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess, editPurchase }) => {
         ...formData,
         supplier_id: parseInt(formData.supplier_id),
         department_id: parseInt(formData.department_id),
-        items: items.map(item => ({
-          product_id: parseInt(item.product_id),
-          quantity: parseFloat(item.quantity),
-          unit_price: parseFloat(item.unit_price),
-          notes: item.notes || null,
-        })),
+        // для підтвердженої — не передаємо items (не можна міняти)
+        ...(!isConfirmed && {
+          items: items.map(item => ({
+            product_id: parseInt(item.product_id),
+            quantity: parseFloat(item.quantity),
+            unit_price: parseFloat(item.unit_price),
+            notes: item.notes || null,
+          })),
+        }),
       }
 
       if (isEdit) {
@@ -206,6 +210,13 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess, editPurchase }) => {
             rows={2}
           />
 
+          {isConfirmed && (
+            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+              Закупівля підтверджена — можна змінити лише дату, постачальника та примітки.
+            </Typography>
+          )}
+
+          {!isConfirmed && (
           <Box>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
               <Typography variant="h6">Позиції</Typography>
@@ -289,6 +300,7 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess, editPurchase }) => {
               </TableBody>
             </Table>
           </Box>
+          )}
         </Box>
       </DialogContent>
       <DialogActions>

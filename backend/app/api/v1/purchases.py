@@ -228,10 +228,26 @@ def update_purchase(
             detail="Purchase not found"
         )
 
-    if db_purchase.status != "draft":
+    # Підтверджена: тільки адмін може змінити дату/примітки/постачальника (не позиції)
+    if db_purchase.status == "confirmed":
+        from app.api.deps import get_current_admin_user
+        # перевіряємо роль вручну
+        from app.models.user import Role
+        role = db.query(Role).filter(Role.id == current_user.role_id).first()
+        if not role or role.name != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only admin can edit confirmed purchases"
+            )
+        if purchase.items is not None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot change items in a confirmed purchase"
+            )
+    elif db_purchase.status != "draft":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Can only update draft purchases"
+            detail="Can only update draft or confirmed purchases"
         )
 
     # Update header fields

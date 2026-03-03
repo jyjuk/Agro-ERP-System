@@ -260,7 +260,7 @@ const PurchasesList = () => {
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                        {purchase.status === 'draft' && (
+                        {(purchase.status === 'draft' || (purchase.status === 'confirmed' && isAdmin())) && (
                           <Button
                             size="small"
                             variant="outlined"
