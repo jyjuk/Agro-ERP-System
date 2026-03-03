@@ -21,18 +21,12 @@ def _run_schema_migrations():
         except NoSuchTableError:
             return  # таблиця ще не існує — create_all вже її створить з новими колонками
         if 'department_id' not in cols:
+            # engine.begin() auto-commit on success, auto-rollback on error
             with engine.begin() as conn:
-                try:
-                    # PostgreSQL 9.6+ / SQLite 3.37+
-                    conn.execute(text(
-                        "ALTER TABLE transport_units ADD COLUMN IF NOT EXISTS "
-                        "department_id INTEGER REFERENCES departments(id)"
-                    ))
-                except Exception:
-                    # Fallback для старих SQLite без IF NOT EXISTS
-                    conn.execute(text(
-                        "ALTER TABLE transport_units ADD COLUMN department_id INTEGER"
-                    ))
+                conn.execute(text(
+                    "ALTER TABLE transport_units ADD COLUMN IF NOT EXISTS "
+                    "department_id INTEGER REFERENCES departments(id)"
+                ))
     except Exception:
         pass  # не валимо застосунок через міграцію
 
