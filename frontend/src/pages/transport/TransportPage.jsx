@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Box, Typography, Button, Paper, Table, TableHead, TableRow,
-  TableCell, TableBody, TableContainer, TablePagination, IconButton, Chip,
+  TableCell, TableBody, TableContainer, TablePagination, IconButton, Chip, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, InputAdornment, Alert, Snackbar,
   Grid, Card, CardContent
@@ -15,6 +16,7 @@ import {
   Search as SearchIcon,
   Agriculture as TractorIcon,
   LocalShipping as TruckIcon,
+  Inventory2 as InventoryIcon,
 } from '@mui/icons-material'
 import { transportAPI } from '../../api/transport'
 import TransportDialog from '../../components/transport/TransportDialog'
@@ -30,6 +32,7 @@ const TYPE_COLOR = {
 }
 
 const TransportPage = () => {
+  const navigate = useNavigate()
   const [units, setUnits] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -194,6 +197,17 @@ const TransportPage = () => {
                     </Typography>
                   </TableCell>
                   <TableCell align="right">
+                    {unit.department_id && (
+                      <Tooltip title={`Залишки запчастин на ${unit.name}`}>
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => navigate(`/inventory?dept=${encodeURIComponent(unit.plate_number ? `${unit.name} (${unit.plate_number})` : unit.name)}`)}
+                        >
+                          <InventoryIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                     <IconButton size="small" onClick={() => handleEdit(unit)} title="Редагувати">
                       <EditIcon fontSize="small" />
                     </IconButton>

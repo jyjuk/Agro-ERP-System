@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -22,11 +23,12 @@ import { inventoryAPI } from '../../api/inventory'
 import { usePagination } from '../../hooks/usePagination'
 
 const InventoryPage = () => {
+  const [searchParams] = useSearchParams()
   const [inventory, setInventory] = useState([])
   const [values, setValues] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [filterDepartment, setFilterDepartment] = useState('')
+  const [filterDepartment, setFilterDepartment] = useState(searchParams.get('dept') || '')
   const [filterProduct, setFilterProduct] = useState('')
   const { page, rowsPerPage, handleChangePage, handleChangeRowsPerPage, paginate, reset } = usePagination(50)
 
