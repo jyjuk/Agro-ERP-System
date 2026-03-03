@@ -368,6 +368,7 @@ npm start
 4. **Старий uvicorn процес** → запустити `kill_backend.ps1`
 5. **Render засинає** → UptimeRobot або GitHub Actions keep-alive
 6. **"department_id column does not exist"** → `_run_schema_migrations()` в main.py виправляє при старті автоматично
+7. **"date: Input should be None"** при редагуванні підтвердженої закупівлі → Pydantic v2 `none_required` на полі `date`. Скоріш за все `formData.date` приходить з бекенду в форматі з часовим компонентом ("2025-03-01T00:00:00") — перевірити DevTools + додати `.split('T')[0]` при формуванні payload
 
 ---
 
@@ -375,7 +376,44 @@ npm start
 
 ### ★ ЗАВТРА ПОЧИНАТИ З ЦЬОГО
 
-#### Пріоритет 1 — Audit Trail UI (хто що змінив, коли)
+#### 🔴 Пріоритет 0 — BUG: "date: Input should be None" при редагуванні підтвердженої закупівлі
+
+**Симптом**: Адмін відкриває підтверджену закупівлю → змінює дату → натискає "Зберегти" → помилка:
+`Помилка: date: Input should be None`
+
+**Що відомо:**
+- `d.loc = ["body", "date"]` — точно поле `date` в тілі запиту
+- Pydantic v2 `none_required` error — поле `Optional[date]` отримує значення, яке не є ні датою, ні `null`
+- Фронтенд посилає `PUT /api/v1/purchases/{id}` з `{date, supplier_id, notes}` (без items, без department_id)
+- `PurchaseUpdate.date: Optional[date] = None` — має приймати рядок "YYYY-MM-DD"
+- Виправлення `!formData.date` додано (commit `423f7f6`), але **не допомогло** — отже `formData.date` не пустий, але все одно не проходить валідацію
+
+**Що перевірити:**
+1. Додати `console.log('payload:', payload)` перед `purchasesAPI.update(...)` у `handleSubmit` — побачити точний payload у DevTools
+2. Перевірити `editPurchase.date` у DevTools (яке значення приходить з бекенду — "2025-03-01" чи "2025-03-01T00:00:00" ?)
+3. Якщо дата приходить з часовим компонентом — обрізати: `date: formData.date.split('T')[0]`
+4. Перевірити логи на Render — що саме отримує бекенд
+
+**Файли**: `frontend/src/components/purchases/CreatePurchaseDialog.jsx` рядок ~131
+
+---
+
+#### Пріоритет 1 — Dashboard (доробити)
+
+**Що є зараз**: базовий Dashboard з KPI-картками та графіками (файл `frontend/src/pages/dashboard/Dashboard.jsx`).
+
+**Що доробити:**
+- [ ] Переглянути поточний Dashboard — що показує, яких даних не вистачає
+- [ ] Додати: топ-5 товарів з низьким залишком (прямо на дашборд, не тільки в меню)
+- [ ] Додати: останні 5 закупівель + останні 5 переміщень
+- [ ] Додати: загальна вартість складу (сума inventory × собівартість) по підрозділах
+- [ ] Красива верстка: 2-3 рядки карток + 2 графіки + 2 таблиці
+
+**Складність**: середня | **Цінність**: висока (перший екран після логіну — має давати повну картину)
+
+---
+
+#### Пріоритет 2 — Audit Trail UI (хто що змінив, коли)
 **Що є вже зараз:**
 - ✅ Модель `AuditLog` в `backend/app/models/audit.py` — таблиця існує
 - ✅ Дані пишуться (перевірити чи пишуться при підтвердженнях)
@@ -389,7 +427,7 @@ npm start
 
 ---
 
-#### Пріоритет 2 — Імпорт з Excel
+#### Пріоритет 3 — Імпорт з Excel
 **Що потрібно:**
 - [ ] Backend: `POST /api/v1/products/import` — читає xlsx, створює товари пакетно
 - [ ] Backend: `POST /api/v1/suppliers/import` — те саме для постачальників
@@ -400,7 +438,7 @@ npm start
 
 ---
 
-#### Пріоритет 3 — Telegram бот з кнопками
+#### Пріоритет 5 — Telegram бот з кнопками
 **Що потрібно:**
 - [ ] `pip install python-telegram-bot>=20`
 - [ ] `backend/app/telegram_bot/` — bot.py, handlers.py, api_client.py, states.py
@@ -425,6 +463,6 @@ npm start
 
 ---
 
-**Останнє оновлення**: 2026-03-03 (сесія 11 — облік запчастин по конкретному ТЗ)
-**Версія**: 0.7.1
-**Статус**: ✅ Production Live | CI/CD ✅ | Моніторинг ✅
+**Останнє оновлення**: 2026-03-03 (сесія 12 — редагування закупівель + BUG date-field)
+**Версія**: 0.7.2
+**Статус**: ✅ Production Live | CI/CD ✅ | Моніторинг ✅ | 🔴 BUG: date-field при edit confirmed purchase
