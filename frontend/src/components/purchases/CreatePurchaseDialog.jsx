@@ -115,25 +115,30 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess, editPurchase }) => {
         return
       }
 
-      if (items.length === 0 || items.some(i => !i.product_id || !i.quantity || !i.unit_price)) {
+      if (!isConfirmed && (items.length === 0 || items.some(i => !i.product_id || !i.quantity || !i.unit_price))) {
         alert('Додайте мінімум один товар з коректними даними')
         return
       }
 
-      const payload = {
-        ...formData,
-        supplier_id: parseInt(formData.supplier_id),
-        department_id: parseInt(formData.department_id),
-        // для підтвердженої — не передаємо items (не можна міняти)
-        ...(!isConfirmed && {
-          items: items.map(item => ({
-            product_id: parseInt(item.product_id),
-            quantity: parseFloat(item.quantity),
-            unit_price: parseFloat(item.unit_price),
-            notes: item.notes || null,
-          })),
-        }),
-      }
+      // Для підтвердженої — тільки дата, постачальник, примітки (без позицій і підрозділу)
+      const payload = isConfirmed
+        ? {
+            date: formData.date,
+            supplier_id: parseInt(formData.supplier_id),
+            notes: formData.notes || null,
+          }
+        : {
+            date: formData.date,
+            supplier_id: parseInt(formData.supplier_id),
+            department_id: parseInt(formData.department_id),
+            notes: formData.notes || null,
+            items: items.map(item => ({
+              product_id: parseInt(item.product_id),
+              quantity: parseFloat(item.quantity),
+              unit_price: parseFloat(item.unit_price),
+              notes: item.notes || null,
+            })),
+          }
 
       if (isEdit) {
         await purchasesAPI.update(editPurchase.id, payload)
@@ -144,7 +149,11 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess, editPurchase }) => {
       onSuccess()
       handleClose()
     } catch (err) {
-      alert('Помилка: ' + (err?.response?.data?.detail || err.message))
+      const detail = err?.response?.data?.detail
+      const msg = Array.isArray(detail)
+        ? detail.map(d => d.msg || JSON.stringify(d)).join('; ')
+        : (typeof detail === 'string' ? detail : err.message)
+      alert('Помилка: ' + msg)
     } finally {
       setLoading(false)
     }
