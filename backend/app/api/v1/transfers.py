@@ -189,9 +189,11 @@ def confirm_transfer(
 
         if not inventory or inventory.quantity < item.quantity:
             product = db.query(Product).filter(Product.id == item.product_id).first()
+            available = float(inventory.quantity) if inventory else 0
+            from_dept = db.query(Department).filter(Department.id == transfer.from_department_id).first()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Insufficient stock for product '{product.name}' in source department"
+                detail=f"Недостатньо запасів: '{product.name}' — потрібно {float(item.quantity)}, є {available} в '{from_dept.name if from_dept else 'підрозділі'}'"
             )
 
         # Calculate average cost from source department (КРИТИЧНО для аналітики)
