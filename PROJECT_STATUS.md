@@ -6,8 +6,8 @@
 **Тип**: Web-додаток (FastAPI + React)
 **База даних**: SQLite (локально) → PostgreSQL/Neon (production)
 **Розташування**: `C:\elev\`
-**Версія**: 0.7.0
-**Останнє оновлення**: 2026-02-24
+**Версія**: 0.7.1
+**Останнє оновлення**: 2026-03-03
 
 ### Стек технологій
 - **Backend**: Python 3.12.6, FastAPI 0.109, SQLAlchemy 2.0, Pydantic 2.10.6
@@ -191,6 +191,17 @@ vite.config.js                 — port 3000, proxy /api → localhost:8000
 - ✅ `TransportPage.jsx` — summary картки, пошук, CRUD
 - ✅ `TransportDialog.jsx` — freeSolo Autocomplete для типу
 
+#### 37. Облік запчастин по конкретному ТЗ (2026-03-03)
+- ✅ `models/transport.py` — додано `department_id` (FK → departments) + relationship
+- ✅ `api/v1/transport.py` — при CREATE авто-створює `Department` з назвою ТЗ; при UPDATE — оновлює назву підрозділу; при DELETE — деактивує підрозділ
+- ✅ `main.py` — `_run_schema_migrations()` при кожному старті додає `department_id` до існуючої таблиці (idempotent, `ALTER TABLE ... IF NOT EXISTS`)
+- ✅ `scripts/migrate_transport_departments.py` — міграція для ручного запуску (існуючі ТЗ)
+- ✅ `render.yaml` — startCommand: `seed_data → migration → uvicorn`
+- ✅ `TransportPage.jsx` — кнопка 📦 Залишки (переходить на `/inventory?dept=...`)
+- ✅ `InventoryPage.jsx` — читає URL param `?dept=` для авто-фільтрації
+
+**Логіка**: кожен ТЗ = окремий `Department` (type='transport'). Переміщення → "На підрозділ" → вибираєш конкретний ТЗ. Залишки фільтруються по підрозділу ТЗ.
+
 ---
 
 ### Сесія 9: Функціональна 100% + GitHub + Деплой (2026-02-24)
@@ -286,7 +297,7 @@ VITE_API_URL
 | Звіти (5 типів + Excel + PDF) | ✅ |
 | Dashboard (KPI + графіки + low-stock) | ✅ |
 | Telegram сповіщення | ✅ |
-| Транспорт CRUD | ✅ |
+| Транспорт CRUD + облік запчастин по конкретному ТЗ | ✅ |
 | Пагінація всіх таблиць | ✅ |
 | Підрозділи (13 шт.) | ✅ |
 
@@ -348,12 +359,15 @@ npm start
 ### БД — таблиці
 `users`, `roles`, `departments`, `suppliers`, `products`, `product_categories`, `units`, `purchases`, `purchase_items`, `inventory`, `inventory_transactions`, `transfers`, `transfer_items`, `writeoffs`, `writeoff_items`, `inventory_counts`, `inventory_count_items`, `audit_log`, `transport_units`
 
+> `transport_units.department_id` → FK на `departments.id` (кожен ТЗ має свій підрозділ)
+
 ### Типові помилки
 1. **"Write-off not found"** → перевірити ID, можливо вже видалено
 2. **"Insufficient stock"** → товар є на іншому підрозділі, не на цьому
 3. **Повільні звіти** → при великих даних є пагінація
 4. **Старий uvicorn процес** → запустити `kill_backend.ps1`
 5. **Render засинає** → UptimeRobot або GitHub Actions keep-alive
+6. **"department_id column does not exist"** → `_run_schema_migrations()` в main.py виправляє при старті автоматично
 
 ---
 
@@ -411,6 +425,6 @@ npm start
 
 ---
 
-**Останнє оновлення**: 2026-02-24 (сесія 10 — CI/CD fix, UptimeRobot, keep-alive, завтрашні пріоритети)
-**Версія**: 0.7.0
+**Останнє оновлення**: 2026-03-03 (сесія 11 — облік запчастин по конкретному ТЗ)
+**Версія**: 0.7.1
 **Статус**: ✅ Production Live | CI/CD ✅ | Моніторинг ✅
