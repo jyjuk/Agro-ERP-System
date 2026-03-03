@@ -110,6 +110,11 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess, editPurchase }) => {
     try {
       setLoading(true)
 
+      if (!formData.date) {
+        alert('Оберіть дату')
+        return
+      }
+
       if (!formData.supplier_id || !formData.department_id) {
         alert('Заповніть всі обов\'язкові поля')
         return
@@ -151,7 +156,10 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess, editPurchase }) => {
     } catch (err) {
       const detail = err?.response?.data?.detail
       const msg = Array.isArray(detail)
-        ? detail.map(d => d.msg || JSON.stringify(d)).join('; ')
+        ? detail.map(d => {
+            const loc = d.loc ? d.loc.filter(x => x !== 'body').join('.') : ''
+            return loc ? `${loc}: ${d.msg}` : (d.msg || JSON.stringify(d))
+          }).join('; ')
         : (typeof detail === 'string' ? detail : err.message)
       alert('Помилка: ' + msg)
     } finally {
