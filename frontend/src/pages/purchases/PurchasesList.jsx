@@ -40,6 +40,7 @@ const PurchasesList = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editPurchase, setEditPurchase] = useState(null)
   const [expandedId, setExpandedId] = useState(null)
   const [filters, setFilters] = useState({
     status: '',
@@ -89,16 +90,28 @@ const PurchasesList = () => {
   }
 
   const handleConfirm = async (id) => {
-    if (!window.confirm('Підтвердити закупівлю? Це оновить залишки на складі.')) {
-      return
-    }
-
+    if (!window.confirm('Підтвердити закупівлю? Це оновить залишки на складі.')) return
     try {
       await purchasesAPI.confirm(id)
       loadPurchases()
     } catch (err) {
-      alert('Failed to confirm purchase: ' + (err.response?.data?.detail || err.message))
+      alert('Помилка підтвердження: ' + (err.response?.data?.detail || err.message))
     }
+  }
+
+  const handleCancel = async (purchase) => {
+    if (!window.confirm(`Скасувати закупівлю ${purchase.number}?`)) return
+    try {
+      await purchasesAPI.cancel(purchase.id)
+      loadPurchases()
+    } catch (err) {
+      alert('Помилка скасування: ' + (err.response?.data?.detail || err.message))
+    }
+  }
+
+  const handleEdit = (purchase) => {
+    setEditPurchase(purchase)
+    setDialogOpen(true)
   }
 
   const toggleExpand = (id) => {
@@ -143,7 +156,7 @@ const PurchasesList = () => {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Закупівлі</Typography>
-        <Button variant="contained" onClick={() => setDialogOpen(true)}>
+        <Button variant="contained" onClick={() => { setEditPurchase(null); setDialogOpen(true) }}>
           + Нова закупівля
         </Button>
       </Box>
@@ -194,8 +207,9 @@ const PurchasesList = () => {
 
       <CreatePurchaseDialog
         open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
+        onClose={() => { setDialogOpen(false); setEditPurchase(null) }}
         onSuccess={loadPurchases}
+        editPurchase={editPurchase}
       />
 
       <TableContainer component={Paper}>
@@ -245,16 +259,37 @@ const PurchasesList = () => {
                       />
                     </TableCell>
                     <TableCell>
-                      {purchase.status === 'draft' && isAdmin() && (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="success"
-                          onClick={() => handleConfirm(purchase.id)}
-                        >
-                          Підтвердити
-                        </Button>
-                      )}
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                        {purchase.status === 'draft' && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => handleEdit(purchase)}
+                          >
+                            Редагувати
+                          </Button>
+                        )}
+                        {purchase.status === 'draft' && isAdmin() && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="success"
+                            onClick={() => handleConfirm(purchase.id)}
+                          >
+                            Підтвердити
+                          </Button>
+                        )}
+                        {purchase.status === 'draft' && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="error"
+                            onClick={() => handleCancel(purchase)}
+                          >
+                            Скасувати
+                          </Button>
+                        )}
+                      </Box>
                     </TableCell>
                   </TableRow>
                   <TableRow>

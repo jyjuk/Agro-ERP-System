@@ -220,7 +220,7 @@ def update_purchase(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_manager_or_admin)
 ):
-    """Оновити закупівлю (тільки draft)"""
+    """Оновити закупівлю (тільки draft) — включно з позиціями"""
     db_purchase = db.query(Purchase).filter(Purchase.id == purchase_id).first()
     if not db_purchase:
         raise HTTPException(
@@ -234,9 +234,43 @@ def update_purchase(
             detail="Can only update draft purchases"
         )
 
-    # Update fields
-    for field, value in purchase.model_dump(exclude_unset=True).items():
+    # Update header fields
+    header_fields = purchase.model_dump(exclude_unset=True, exclude={'items'})
+    for field, value in header_fields.items():
         setattr(db_purchase, field, value)
+
+    # Replace items if provided
+    if purchase.items is not None:
+        # Validate all products exist
+        for item in purchase.items:
+            product = db.query(Product).filter(Product.id == item.product_id).first()
+            if not product:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Product with ID {item.product_id} not found"
+                )
+
+        # Delete existing items
+        for old_item in db_purchase.items:
+            db.delete(old_item)
+        db.flush()
+
+        # Create new items
+        total_amount = Decimal(0)
+        for item in purchase.items:
+            total_price = item.quantity * item.unit_price
+            total_amount += total_price
+            db_item = PurchaseItem(
+                purchase_id=db_purchase.id,
+                product_id=item.product_id,
+                quantity=item.quantity,
+                unit_price=item.unit_price,
+                total_price=total_price,
+                notes=item.notes
+            )
+            db.add(db_item)
+
+        db_purchase.total_amount = total_amount
 
     db.commit()
     db.refresh(db_purchase)

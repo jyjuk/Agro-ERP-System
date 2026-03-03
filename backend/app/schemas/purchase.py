@@ -67,6 +67,7 @@ class PurchaseUpdate(BaseModel):
     department_id: Optional[int] = None
     notes: Optional[str] = None
     status: Optional[str] = None
+    items: Optional[List[PurchaseItemCreate]] = None
 
 
 class PurchaseResponse(PurchaseBase):

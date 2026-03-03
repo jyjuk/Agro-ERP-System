@@ -22,7 +22,9 @@ import { productsAPI } from '../../api/products'
 import { departmentsAPI } from '../../api/departments'
 import { purchasesAPI } from '../../api/purchases'
 
-const CreatePurchaseDialog = ({ open, onClose, onSuccess }) => {
+const emptyItem = { product_id: '', quantity: '', unit_price: '', notes: '' }
+
+const CreatePurchaseDialog = ({ open, onClose, onSuccess, editPurchase }) => {
   const [suppliers, setSuppliers] = useState([])
   const [products, setProducts] = useState([])
   const [departments, setDepartments] = useState([])
@@ -35,15 +37,43 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess }) => {
     notes: '',
   })
 
-  const [items, setItems] = useState([
-    { product_id: '', quantity: '', unit_price: '' },
-  ])
+  const [items, setItems] = useState([emptyItem])
+
+  const isEdit = Boolean(editPurchase)
 
   useEffect(() => {
     if (open) {
       loadReferenceData()
     }
   }, [open])
+
+  // Заповнюємо форму при відкритті в режимі редагування
+  useEffect(() => {
+    if (open && editPurchase) {
+      setFormData({
+        date: editPurchase.date,
+        supplier_id: editPurchase.supplier_id,
+        department_id: editPurchase.department_id,
+        notes: editPurchase.notes || '',
+      })
+      setItems(
+        editPurchase.items.map(i => ({
+          product_id: i.product_id,
+          quantity: String(i.quantity),
+          unit_price: String(i.unit_price),
+          notes: i.notes || '',
+        }))
+      )
+    } else if (open && !editPurchase) {
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        supplier_id: '',
+        department_id: '',
+        notes: '',
+      })
+      setItems([emptyItem])
+    }
+  }, [open, editPurchase])
 
   const loadReferenceData = async () => {
     try {
@@ -60,13 +90,9 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess }) => {
     }
   }
 
-  const handleAddItem = () => {
-    setItems([...items, { product_id: '', quantity: '', unit_price: '' }])
-  }
+  const handleAddItem = () => setItems([...items, emptyItem])
 
-  const handleRemoveItem = (index) => {
-    setItems(items.filter((_, i) => i !== index))
-  }
+  const handleRemoveItem = (index) => setItems(items.filter((_, i) => i !== index))
 
   const handleItemChange = (index, field, value) => {
     const newItems = [...items]
@@ -74,19 +100,15 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess }) => {
     setItems(newItems)
   }
 
-  const calculateTotal = () => {
-    return items.reduce((sum, item) => {
-      const qty = parseFloat(item.quantity) || 0
-      const price = parseFloat(item.unit_price) || 0
-      return sum + qty * price
+  const calculateTotal = () =>
+    items.reduce((sum, item) => {
+      return sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0)
     }, 0)
-  }
 
   const handleSubmit = async () => {
     try {
       setLoading(true)
 
-      // Validate
       if (!formData.supplier_id || !formData.department_id) {
         alert('Заповніть всі обов\'язкові поля')
         return
@@ -97,7 +119,7 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess }) => {
         return
       }
 
-      const data = {
+      const payload = {
         ...formData,
         supplier_id: parseInt(formData.supplier_id),
         department_id: parseInt(formData.department_id),
@@ -109,11 +131,16 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess }) => {
         })),
       }
 
-      await purchasesAPI.create(data)
+      if (isEdit) {
+        await purchasesAPI.update(editPurchase.id, payload)
+      } else {
+        await purchasesAPI.create(payload)
+      }
+
       onSuccess()
       handleClose()
     } catch (err) {
-      alert('Помилка створення закупівлі: ' + err.message)
+      alert('Помилка: ' + (err?.response?.data?.detail || err.message))
     } finally {
       setLoading(false)
     }
@@ -126,16 +153,15 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess }) => {
       department_id: '',
       notes: '',
     })
-    setItems([{ product_id: '', quantity: '', unit_price: '' }])
+    setItems([emptyItem])
     onClose()
   }
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle>Нова закупівля</DialogTitle>
+      <DialogTitle>{isEdit ? `Редагувати закупівлю ${editPurchase?.number}` : 'Нова закупівля'}</DialogTitle>
       <DialogContent>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-          {/* Header fields */}
           <TextField
             label="Дата"
             type="date"
@@ -154,9 +180,7 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess }) => {
             required
           >
             {suppliers.map((s) => (
-              <MenuItem key={s.id} value={s.id}>
-                {s.name}
-              </MenuItem>
+              <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
             ))}
           </TextField>
 
@@ -169,9 +193,7 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess }) => {
             required
           >
             {departments.map((d) => (
-              <MenuItem key={d.id} value={d.id}>
-                {d.name}
-              </MenuItem>
+              <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
             ))}
           </TextField>
 
@@ -184,7 +206,6 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess }) => {
             rows={2}
           />
 
-          {/* Items */}
           <Box>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
               <Typography variant="h6">Позиції</Typography>
@@ -216,9 +237,7 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess }) => {
                         required
                       >
                         {products.map((p) => (
-                          <MenuItem key={p.id} value={p.id}>
-                            {p.name}
-                          </MenuItem>
+                          <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
                         ))}
                       </TextField>
                     </TableCell>
@@ -229,7 +248,8 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess }) => {
                         onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
                         size="small"
                         required
-                        inputProps={{ min: 0, step: 0.01 }}
+                        inputProps={{ min: 0, step: 0.001 }}
+                        sx={{ width: 100 }}
                       />
                     </TableCell>
                     <TableCell>
@@ -240,6 +260,7 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess }) => {
                         size="small"
                         required
                         inputProps={{ min: 0, step: 0.01 }}
+                        sx={{ width: 110 }}
                       />
                     </TableCell>
                     <TableCell>
@@ -273,7 +294,7 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess }) => {
       <DialogActions>
         <Button onClick={handleClose}>Скасувати</Button>
         <Button onClick={handleSubmit} variant="contained" disabled={loading}>
-          {loading ? 'Створення...' : 'Створити'}
+          {loading ? 'Збереження...' : isEdit ? 'Зберегти' : 'Створити'}
         </Button>
       </DialogActions>
     </Dialog>

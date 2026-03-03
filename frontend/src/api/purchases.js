@@ -21,6 +21,11 @@ export const purchasesAPI = {
     return response.data
   },
 
+  update: async (id, data) => {
+    const response = await client.put(`/purchases/${id}`, data)
+    return response.data
+  },
+
   cancel: async (id) => {
     const response = await client.delete(`/purchases/${id}`)
     return response.data
