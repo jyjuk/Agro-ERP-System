@@ -72,11 +72,19 @@ class PurchaseUpdate(BaseModel):
     @field_validator('date', mode='before')
     @classmethod
     def normalize_date(cls, v):
-        """Обрізає часовий компонент якщо дата прийшла як datetime-рядок."""
+        """Приймає будь-який рядок з датою, конвертує в date об'єкт."""
+        if v is None:
+            return None
+        if isinstance(v, date):
+            return v
         if isinstance(v, str):
-            if not v:
+            s = v.strip().split('T')[0]
+            if not s:
                 return None
-            return v.split('T')[0]
+            try:
+                return date.fromisoformat(s)
+            except ValueError:
+                return None
         return v
 
 
