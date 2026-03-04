@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from datetime import date, datetime
 from typing import List, Optional
 from decimal import Decimal
@@ -68,6 +68,16 @@ class PurchaseUpdate(BaseModel):
     notes: Optional[str] = None
     status: Optional[str] = None
     items: Optional[List[PurchaseItemCreate]] = None
+
+    @field_validator('date', mode='before')
+    @classmethod
+    def normalize_date(cls, v):
+        """Обрізає часовий компонент якщо дата прийшла як datetime-рядок."""
+        if isinstance(v, str):
+            if not v:
+                return None
+            return v.split('T')[0]
+        return v
 
 
 class PurchaseResponse(PurchaseBase):

@@ -238,13 +238,24 @@ const Dashboard = () => {
         <Grid item xs={12} lg={8}>
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom>Закупівлі за останні 6 місяців</Typography>
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={monthlyPurchases}>
+            <ResponsiveContainer width="99%" height={320}>
+              <LineChart data={monthlyPurchases} margin={{ top: 10, right: 30, left: 20, bottom: 65 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month_name" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(v) => `${parseFloat(v).toLocaleString('uk-UA')} ₴`} />
-                <Legend />
+                <XAxis
+                  dataKey="month_name"
+                  tick={{ fontSize: 11 }}
+                  angle={-35}
+                  textAnchor="end"
+                  interval={0}
+                  height={75}
+                />
+                <YAxis
+                  tick={{ fontSize: 11 }}
+                  width={90}
+                  tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k ₴` : `${v} ₴`}
+                />
+                <Tooltip formatter={(v) => [`${parseFloat(v).toLocaleString('uk-UA')} ₴`, 'Сума']} />
+                <Legend verticalAlign="top" height={30} />
                 <Line type="monotone" dataKey="total_amount" stroke="#2e7d32" name="Сума (₴)" strokeWidth={2} dot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
