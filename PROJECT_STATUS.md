@@ -414,6 +414,22 @@ npm start
 
 ---
 
+#### ✅ BUG: дублювання позицій у закупівлях і переміщеннях (commit `70c8080`)
+
+**Причина**: shallow copy + спільне посилання на об'єкт.
+- `handleAddItem` додавав той самий об'єкт `emptyItem` (не копію) → всі нові рядки посилались на один об'єкт
+- `handleItemChange` робив `[...items]` (shallow copy масиву) → `newItems[index][field] = value` мутував оригінальний об'єкт, що відображалось у всіх рядках
+**Виправлення**: `{ ...emptyItem }` при додаванні + `items.map((item, i) => i === index ? { ...item, [field]: value } : item)`. Виправлено в обох діалогах.
+
+---
+
+#### ✅ BUG: ТОП-5 Постачальників — неправильний масштаб осі (commit `5c45d7a`)
+
+**Причина**: та сама що і з графіком закупівель — `total_purchases` від API є Decimal-рядком, Recharts не міг порахувати домен (показував макс. 5000 замість реальних значень).
+**Виправлення**: `total_purchases: parseFloat(d.total_purchases) || 0` при обробці `topSuppliers` + `domain={[0, 'dataMax']}` на XAxis BarChart.
+
+---
+
 #### Пріоритет 2 — Audit Trail UI (хто що змінив, коли)
 **Що є вже зараз:**
 - ✅ Модель `AuditLog` в `backend/app/models/audit.py` — таблиця існує
@@ -464,6 +480,6 @@ npm start
 
 ---
 
-**Останнє оновлення**: 2026-03-04 (сесія 14 — date-bug fix, chart fix, Autocomplete, Analytics page)
-**Версія**: 0.8.0
+**Останнє оновлення**: 2026-03-04 (сесія 14 — Analytics, bugfixes: item duplication, chart Decimal)
+**Версія**: 0.8.1
 **Статус**: ✅ Production Live | CI/CD ✅ | Моніторинг ✅
