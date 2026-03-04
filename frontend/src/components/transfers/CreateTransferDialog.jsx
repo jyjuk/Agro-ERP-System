@@ -6,7 +6,6 @@ import {
   DialogActions,
   Button,
   TextField,
-  MenuItem,
   Box,
   IconButton,
   Typography,
@@ -15,7 +14,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  Chip,
+  Autocomplete,
 } from '@mui/material'
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import { productsAPI } from '../../api/products'
@@ -178,35 +177,23 @@ const CreateTransferDialog = ({ open, onClose, onSuccess }) => {
             required
           />
 
-          <TextField
-            select
-            label="З підрозділу"
-            value={formData.from_department_id}
-            onChange={(e) => setFormData({ ...formData, from_department_id: e.target.value })}
-            fullWidth
-            required
-          >
-            {departments.map((d) => (
-              <MenuItem key={d.id} value={d.id}>
-                {d.name}
-              </MenuItem>
-            ))}
-          </TextField>
+          <Autocomplete
+            options={departments}
+            getOptionLabel={(opt) => opt.name || ''}
+            value={departments.find(d => d.id === formData.from_department_id) || null}
+            onChange={(_, newVal) => setFormData({ ...formData, from_department_id: newVal?.id || '' })}
+            isOptionEqualToValue={(opt, val) => opt.id === val.id}
+            renderInput={(params) => <TextField {...params} label="З підрозділу" required />}
+          />
 
-          <TextField
-            select
-            label="На підрозділ"
-            value={formData.to_department_id}
-            onChange={(e) => setFormData({ ...formData, to_department_id: e.target.value })}
-            fullWidth
-            required
-          >
-            {departments.map((d) => (
-              <MenuItem key={d.id} value={d.id}>
-                {d.name}
-              </MenuItem>
-            ))}
-          </TextField>
+          <Autocomplete
+            options={departments}
+            getOptionLabel={(opt) => opt.name || ''}
+            value={departments.find(d => d.id === formData.to_department_id) || null}
+            onChange={(_, newVal) => setFormData({ ...formData, to_department_id: newVal?.id || '' })}
+            isOptionEqualToValue={(opt, val) => opt.id === val.id}
+            renderInput={(params) => <TextField {...params} label="На підрозділ" required />}
+          />
 
           <TextField
             label="Примітки"
@@ -243,34 +230,29 @@ const CreateTransferDialog = ({ open, onClose, onSuccess }) => {
                   return (
                     <TableRow key={index}>
                       <TableCell>
-                        <TextField
-                          select
-                          value={item.product_id}
-                          onChange={(e) => handleItemChange(index, 'product_id', e.target.value)}
-                          size="small"
-                          fullWidth
-                          required
-                        >
-                          {products.map((p) => {
-                            const avail = formData.from_department_id ? (deptInventory[p.id] ?? 0) : null
+                        <Autocomplete
+                          options={products}
+                          getOptionLabel={(opt) => opt.name || ''}
+                          value={products.find(p => p.id === parseInt(item.product_id)) || null}
+                          onChange={(_, newVal) => handleItemChange(index, 'product_id', newVal?.id || '')}
+                          isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                          renderOption={(props, option) => {
+                            const avail = formData.from_department_id ? (deptInventory[option.id] ?? 0) : null
                             return (
-                              <MenuItem key={p.id} value={p.id}>
+                              <li {...props} key={option.id}>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', gap: 1 }}>
-                                  <span>{p.name}</span>
+                                  <span>{option.name}</span>
                                   {avail !== null && (
-                                    <Typography
-                                      variant="caption"
-                                      color={avail > 0 ? 'success.main' : 'error.main'}
-                                      sx={{ whiteSpace: 'nowrap' }}
-                                    >
+                                    <Typography variant="caption" color={avail > 0 ? 'success.main' : 'error.main'} sx={{ whiteSpace: 'nowrap' }}>
                                       є: {avail}
                                     </Typography>
                                   )}
                                 </Box>
-                              </MenuItem>
+                              </li>
                             )
-                          })}
-                        </TextField>
+                          }}
+                          renderInput={(params) => <TextField {...params} size="small" required placeholder="Оберіть товар" />}
+                        />
                         {item.product_id && available !== null && (
                           <Typography variant="caption" color={available > 0 ? 'text.secondary' : 'error.main'}>
                             Доступно: {available}

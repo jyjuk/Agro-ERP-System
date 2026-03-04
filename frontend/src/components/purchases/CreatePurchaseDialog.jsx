@@ -6,7 +6,6 @@ import {
   DialogActions,
   Button,
   TextField,
-  MenuItem,
   Box,
   IconButton,
   Typography,
@@ -15,6 +14,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  Autocomplete,
 } from '@mui/material'
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import { suppliersAPI } from '../../api/suppliers'
@@ -193,31 +193,23 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess, editPurchase }) => {
             required
           />
 
-          <TextField
-            select
-            label="Постачальник"
-            value={formData.supplier_id}
-            onChange={(e) => setFormData({ ...formData, supplier_id: e.target.value })}
-            fullWidth
-            required
-          >
-            {suppliers.map((s) => (
-              <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
-            ))}
-          </TextField>
+          <Autocomplete
+            options={suppliers}
+            getOptionLabel={(opt) => opt.name || ''}
+            value={suppliers.find(s => s.id === formData.supplier_id) || null}
+            onChange={(_, newVal) => setFormData({ ...formData, supplier_id: newVal?.id || '' })}
+            isOptionEqualToValue={(opt, val) => opt.id === val.id}
+            renderInput={(params) => <TextField {...params} label="Постачальник" required />}
+          />
 
-          <TextField
-            select
-            label="Підрозділ (куди оприбуткувати)"
-            value={formData.department_id}
-            onChange={(e) => setFormData({ ...formData, department_id: e.target.value })}
-            fullWidth
-            required
-          >
-            {departments.map((d) => (
-              <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
-            ))}
-          </TextField>
+          <Autocomplete
+            options={departments}
+            getOptionLabel={(opt) => opt.name || ''}
+            value={departments.find(d => d.id === formData.department_id) || null}
+            onChange={(_, newVal) => setFormData({ ...formData, department_id: newVal?.id || '' })}
+            isOptionEqualToValue={(opt, val) => opt.id === val.id}
+            renderInput={(params) => <TextField {...params} label="Підрозділ (куди оприбуткувати)" required />}
+          />
 
           <TextField
             label="Примітки"
@@ -257,18 +249,14 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess, editPurchase }) => {
                 {items.map((item, index) => (
                   <TableRow key={index}>
                     <TableCell>
-                      <TextField
-                        select
-                        value={item.product_id}
-                        onChange={(e) => handleItemChange(index, 'product_id', e.target.value)}
-                        size="small"
-                        fullWidth
-                        required
-                      >
-                        {products.map((p) => (
-                          <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
-                        ))}
-                      </TextField>
+                      <Autocomplete
+                        options={products}
+                        getOptionLabel={(opt) => opt.name || ''}
+                        value={products.find(p => p.id === parseInt(item.product_id)) || null}
+                        onChange={(_, newVal) => handleItemChange(index, 'product_id', newVal?.id || '')}
+                        isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                        renderInput={(params) => <TextField {...params} size="small" required placeholder="Оберіть товар" />}
+                      />
                     </TableCell>
                     <TableCell>
                       <TextField
