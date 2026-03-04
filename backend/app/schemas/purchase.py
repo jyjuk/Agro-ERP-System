@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict
 from datetime import date, datetime
 from typing import List, Optional
 from decimal import Decimal
@@ -62,30 +62,12 @@ class PurchaseCreate(PurchaseBase):
 
 
 class PurchaseUpdate(BaseModel):
-    date: Optional[date] = None
+    date: Optional[str] = None  # String — converted to date manually in endpoint
     supplier_id: Optional[int] = None
     department_id: Optional[int] = None
     notes: Optional[str] = None
     status: Optional[str] = None
     items: Optional[List[PurchaseItemCreate]] = None
-
-    @field_validator('date', mode='before')
-    @classmethod
-    def normalize_date(cls, v):
-        """Приймає будь-який рядок з датою, конвертує в date об'єкт."""
-        if v is None:
-            return None
-        if isinstance(v, date):
-            return v
-        if isinstance(v, str):
-            s = v.strip().split('T')[0]
-            if not s:
-                return None
-            try:
-                return date.fromisoformat(s)
-            except ValueError:
-                return None
-        return v
 
 
 class PurchaseResponse(PurchaseBase):

@@ -250,10 +250,18 @@ def update_purchase(
             detail="Can only update draft or confirmed purchases"
         )
 
-    # Update header fields
-    header_fields = purchase.model_dump(exclude_unset=True, exclude={'items'})
+    # Update header fields (exclude date — handle manually to avoid Pydantic Optional[date] coercion issues)
+    header_fields = purchase.model_dump(exclude_unset=True, exclude={'items', 'date'})
     for field, value in header_fields.items():
         setattr(db_purchase, field, value)
+
+    # Convert date string manually
+    if purchase.date is not None:
+        date_str = str(purchase.date).strip().split('T')[0]
+        try:
+            db_purchase.date = date_type.fromisoformat(date_str)
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Невірний формат дати")
 
     # Replace items if provided
     if purchase.items is not None:

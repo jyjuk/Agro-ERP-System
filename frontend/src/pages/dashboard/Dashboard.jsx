@@ -129,7 +129,12 @@ const Dashboard = () => {
   }
 
   const kpis = data?.kpis || {}
-  const monthlyPurchases = data?.monthly_purchases || []
+  // Convert Decimal strings → numbers so Recharts renders correctly
+  const monthlyPurchases = (data?.monthly_purchases || []).map(d => ({
+    ...d,
+    total_amount: parseFloat(d.total_amount) || 0,
+  }))
+  const maxAmount = Math.max(0, ...monthlyPurchases.map(d => d.total_amount))
   const topSuppliers = data?.top_suppliers || []
   const topProducts = data?.top_products || []
 
@@ -245,7 +250,7 @@ const Dashboard = () => {
                 <YAxis
                   tick={{ fontSize: 12 }}
                   width={75}
-                  domain={[0, dataMax => Math.ceil(dataMax * 1.2) || 100]}
+                  domain={[0, Math.ceil(maxAmount * 1.3) || 100]}
                 />
                 <Tooltip formatter={(v) => `${parseFloat(v).toLocaleString('uk-UA')} ₴`} />
                 <Legend />
