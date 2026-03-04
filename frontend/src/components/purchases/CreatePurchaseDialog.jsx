@@ -52,7 +52,7 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess, editPurchase }) => {
   useEffect(() => {
     if (open && editPurchase) {
       setFormData({
-        date: editPurchase.date,
+        date: editPurchase.date ? String(editPurchase.date).split('T')[0] : '',
         supplier_id: editPurchase.supplier_id,
         department_id: editPurchase.department_id,
         notes: editPurchase.notes || '',
@@ -126,14 +126,15 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess, editPurchase }) => {
       }
 
       // Для підтвердженої — тільки дата, постачальник, примітки (без позицій і підрозділу)
+      const safeDate = formData.date ? String(formData.date).split('T')[0] : formData.date
       const payload = isConfirmed
         ? {
-            date: formData.date,
+            date: safeDate,
             supplier_id: parseInt(formData.supplier_id),
             notes: formData.notes || null,
           }
         : {
-            date: formData.date,
+            date: safeDate,
             supplier_id: parseInt(formData.supplier_id),
             department_id: parseInt(formData.department_id),
             notes: formData.notes || null,
