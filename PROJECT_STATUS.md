@@ -6,8 +6,8 @@
 **Тип**: Web-додаток (FastAPI + React)
 **База даних**: SQLite (локально) → PostgreSQL/Neon (production)
 **Розташування**: `C:\elev\`
-**Версія**: 0.7.1
-**Останнє оновлення**: 2026-03-03
+**Версія**: 0.7.4
+**Останнє оновлення**: 2026-03-04
 
 ### Стек технологій
 - **Backend**: Python 3.12.6, FastAPI 0.109, SQLAlchemy 2.0, Pydantic 2.10.6
@@ -368,7 +368,7 @@ npm start
 4. **Старий uvicorn процес** → запустити `kill_backend.ps1`
 5. **Render засинає** → UptimeRobot або GitHub Actions keep-alive
 6. **"department_id column does not exist"** → `_run_schema_migrations()` в main.py виправляє при старті автоматично
-7. **"date: Input should be None"** при редагуванні підтвердженої закупівлі → Pydantic v2 `none_required` на полі `date`. Скоріш за все `formData.date` приходить з бекенду в форматі з часовим компонентом ("2025-03-01T00:00:00") — перевірити DevTools + додати `.split('T')[0]` при формуванні payload
+7. **"date: Input should be None"** при редагуванні підтвердженої закупівлі → ✅ ВИПРАВЛЕНО (commit `7b44b5f`). Причина: Pydantic v2 `none_required` для `Optional[date]` — жоден `field_validator` не допомагав. Рішення: `PurchaseUpdate.date: Optional[str]` (бай-пас Pydantic), конвертація `date_type.fromisoformat()` вручну в ендпоінті.
 
 ---
 
@@ -376,20 +376,23 @@ npm start
 
 ### ★ ЗАВТРА ПОЧИНАТИ З ЦЬОГО
 
-#### ✅ BUG: "date: Input should be None" — ВИПРАВЛЕНО (commit `47c348d`)
+#### ✅ BUG: "date: Input should be None" — ВИПРАВЛЕНО (commit `7b44b5f`)
 
-**Причина**: `editPurchase.date` приходило з бекенду з часовим компонентом ("2025-03-01T00:00:00"), Pydantic v2 відхиляв це для `Optional[date]`.
-**Виправлення**: `.split('T')[0]` при завантаженні в `setFormData` і при формуванні payload.
+**Причина**: Pydantic v2 `none_required` error для `Optional[date]` в `PurchaseUpdate`. Попередні спроби (`.split('T')[0]` на фронті, `@field_validator('date', mode='before')`) не допомогли — Pydantic v2 відхиляв рядок ще до виклику валідатора.
+**Кінцеве рішення**:
+- `backend/app/schemas/purchase.py`: `date: Optional[str] = None` — повний бай-пас Pydantic date validation
+- `backend/app/api/v1/purchases.py` (`update_purchase`): `model_dump(exclude_unset=True, exclude={'items', 'date'})` + ручна конвертація `date_type.fromisoformat(str(purchase.date).split('T')[0])`
 
 ---
 
-#### ✅ Dashboard — ДООПРАЦЬОВАНО (commit `47c348d`)
+#### ✅ Dashboard — ДООПРАЦЬОВАНО (commit `47c348d`, chart fix `7b44b5f`)
 
 - Низькі залишки — завжди видимі (empty state "Все в нормі" якщо OK)
 - Останні 5 закупівель з номером, датою, постачальником, сумою, статусом
 - Останні 5 переміщень з номером, датою, звідки-куди, статусом
 - Типи транзакцій українською (Прихід / Переміщення / Списання / Коригування)
 - KPI-картки з кольоровою лівою смугою, числа через toLocaleString
+- **Chart fix**: `total_amount` від API — Decimal-рядок, Recharts не міг порахувати домен → Y-вісь показувала 2420 замість реальних 123000+. Виправлено: `parseFloat()` для всіх значень + `maxAmount` розраховується заздалегідь як `Math.max(0, ...data.map(d => d.total_amount))`, домен `[0, Math.ceil(maxAmount * 1.3)]`
 
 ---
 
@@ -443,6 +446,6 @@ npm start
 
 ---
 
-**Останнє оновлення**: 2026-03-04 (сесія 13 — fix date-bug + dashboard)
-**Версія**: 0.7.3
+**Останнє оновлення**: 2026-03-04 (сесія 14 — остаточний fix date-bug + chart domain fix)
+**Версія**: 0.7.4
 **Статус**: ✅ Production Live | CI/CD ✅ | Моніторинг ✅
