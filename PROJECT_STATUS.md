@@ -396,6 +396,14 @@ npm start
 
 ---
 
+#### ✅ Searchable Autocomplete у діалогах закупівель і переміщень (commit `20f39e3`)
+
+- `CreatePurchaseDialog`: поля Постачальник, Підрозділ, Товар у рядках — замінено з `<TextField select>` на MUI `<Autocomplete>` з текстовим пошуком
+- `CreateTransferDialog`: поля "З підрозділу", "На підрозділ", Товар у рядках — аналогічно; для товарів збережено `renderOption` з відображенням доступного залишку (`є: N`)
+- Пошук по першим літерам назви, фільтрація списку в реальному часі
+
+---
+
 #### Пріоритет 2 — Audit Trail UI (хто що змінив, коли)
 **Що є вже зараз:**
 - ✅ Модель `AuditLog` в `backend/app/models/audit.py` — таблиця існує
@@ -446,6 +454,6 @@ npm start
 
 ---
 
-**Останнє оновлення**: 2026-03-04 (сесія 14 — остаточний fix date-bug + chart domain fix)
-**Версія**: 0.7.4
+**Останнє оновлення**: 2026-03-04 (сесія 14 — date-bug fix, chart fix, searchable Autocomplete)
+**Версія**: 0.7.5
 **Статус**: ✅ Production Live | CI/CD ✅ | Моніторинг ✅
