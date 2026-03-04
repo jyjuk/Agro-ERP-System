@@ -91,14 +91,12 @@ const CreatePurchaseDialog = ({ open, onClose, onSuccess, editPurchase }) => {
     }
   }
 
-  const handleAddItem = () => setItems([...items, emptyItem])
+  const handleAddItem = () => setItems([...items, { ...emptyItem }])
 
   const handleRemoveItem = (index) => setItems(items.filter((_, i) => i !== index))
 
   const handleItemChange = (index, field, value) => {
-    const newItems = [...items]
-    newItems[index][field] = value
-    setItems(newItems)
+    setItems(items.map((item, i) => i === index ? { ...item, [field]: value } : item))
   }
 
   const calculateTotal = () =>

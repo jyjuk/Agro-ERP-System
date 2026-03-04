@@ -95,9 +95,7 @@ const CreateTransferDialog = ({ open, onClose, onSuccess }) => {
   }
 
   const handleItemChange = (index, field, value) => {
-    const newItems = [...items]
-    newItems[index][field] = value
-    setItems(newItems)
+    setItems(items.map((item, i) => i === index ? { ...item, [field]: value } : item))
   }
 
   const handleSubmit = async () => {
