@@ -28,6 +28,7 @@ import {
   Category as ProductIcon,
   DirectionsCar as TransportIcon,
   FactCheck as InventoryCountIcon,
+  TrendingUp as AnalyticsIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../../context/AuthContext'
 
@@ -40,7 +41,8 @@ const allMenuItems = [
   { text: 'Закупівлі',   icon: <PurchaseIcon />,  path: '/purchases', roles: ['admin', 'manager'] },
   { text: 'Переміщення', icon: <TransferIcon />,  path: '/transfers', roles: ['admin', 'manager', 'warehouse_manager'] },
   { text: 'Списання',    icon: <WriteOffIcon />,  path: '/writeoffs', roles: ['admin', 'manager', 'warehouse_manager', 'department_head'] },
-  { text: 'Звіти',       icon: <ReportIcon />,    path: '/reports',   roles: ['admin', 'manager', 'warehouse_manager', 'accountant'] },
+  { text: 'Звіти',       icon: <ReportIcon />,    path: '/reports',    roles: ['admin', 'manager', 'warehouse_manager', 'accountant'] },
+  { text: 'Аналітика',  icon: <AnalyticsIcon />, path: '/analytics',  roles: ['admin', 'manager', 'accountant'] },
 ]
 
 const dictionaryMenuItems = [

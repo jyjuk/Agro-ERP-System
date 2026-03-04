@@ -219,3 +219,71 @@ class MaterialReportResponse(BaseModel):
     date_from: Optional[date] = None
     date_to: Optional[date] = None
     materials: List[MaterialReportData]
+
+
+# === Analytics ===
+
+# #1 Price Dynamics
+class PriceDynamicsPoint(BaseModel):
+    date: date
+    unit_price: Decimal
+    supplier_name: str
+    purchase_number: str
+
+
+class PriceDynamicsResponse(BaseModel):
+    product_id: int
+    product_name: str
+    unit_name: Optional[str] = None
+    points: List[PriceDynamicsPoint]
+
+
+# #2 Supplier Monthly
+class SupplierMonthlyItem(BaseModel):
+    product_name: str
+    product_code: str
+    quantity: Decimal
+    unit_price: Decimal
+    total_price: Decimal
+    purchase_number: str
+    date: date
+
+
+class SupplierMonthlyRow(BaseModel):
+    supplier_id: int
+    supplier_name: str
+    total_amount: Decimal
+    purchases_count: int
+    items: List[SupplierMonthlyItem]
+
+
+class SupplierMonthlyResponse(BaseModel):
+    date_from: date
+    date_to: date
+    total_amount: Decimal
+    suppliers: List[SupplierMonthlyRow]
+
+
+# #3 ABC Analysis
+class ABCItem(BaseModel):
+    product_id: int
+    product_name: str
+    product_code: str
+    category_name: Optional[str] = None
+    total_amount: Decimal
+    percentage: Decimal
+    cumulative_percentage: Decimal
+    abc_class: str  # 'A', 'B', 'C'
+
+
+class ABCResponse(BaseModel):
+    date_from: Optional[date] = None
+    date_to: Optional[date] = None
+    total_amount: Decimal
+    items: List[ABCItem]
+    count_a: int
+    count_b: int
+    count_c: int
+    amount_a: Decimal
+    amount_b: Decimal
+    amount_c: Decimal

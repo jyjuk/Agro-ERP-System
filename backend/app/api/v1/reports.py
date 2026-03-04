@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, and_, or_
 from typing import Optional
@@ -27,7 +27,14 @@ from app.schemas.report import (
     DepartmentMaterialRow,
     MaterialReportResponse,
     MaterialReportData,
-    MaterialLocation
+    MaterialLocation,
+    PriceDynamicsResponse,
+    PriceDynamicsPoint,
+    SupplierMonthlyResponse,
+    SupplierMonthlyRow,
+    SupplierMonthlyItem,
+    ABCResponse,
+    ABCItem,
 )
 from app.models.user import User
 from app.models.purchase import Purchase, PurchaseItem
@@ -1041,3 +1048,195 @@ def get_material_report(
             ))
 
     return MaterialReportResponse(date_from=date_from, date_to=date_to, materials=materials_data)
+
+
+# === ANALYTICS ===
+
+@router.get("/price-dynamics", response_model=PriceDynamicsResponse)
+def get_price_dynamics(
+    product_id: int = Query(...),
+    date_from: Optional[date_type] = Query(None),
+    date_to: Optional[date_type] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_report_reader)
+):
+    """Динаміка цін на конкретний товар по постачальниках"""
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    from app.models.product import Unit as UnitModel
+    unit = db.query(UnitModel).filter(UnitModel.id == product.unit_id).first()
+
+    query = (
+        db.query(PurchaseItem, Purchase, Supplier)
+        .join(Purchase, PurchaseItem.purchase_id == Purchase.id)
+        .join(Supplier, Purchase.supplier_id == Supplier.id)
+        .filter(PurchaseItem.product_id == product_id)
+        .filter(Purchase.status == "confirmed")
+    )
+    if date_from:
+        query = query.filter(Purchase.date >= date_from)
+    if date_to:
+        query = query.filter(Purchase.date <= date_to)
+
+    rows = query.order_by(Purchase.date).all()
+
+    points = [
+        PriceDynamicsPoint(
+            date=p.date,
+            unit_price=pi.unit_price,
+            supplier_name=s.name,
+            purchase_number=p.number,
+        )
+        for pi, p, s in rows
+    ]
+
+    return PriceDynamicsResponse(
+        product_id=product.id,
+        product_name=product.name,
+        unit_name=unit.short_name if unit else None,
+        points=points,
+    )
+
+
+@router.get("/supplier-monthly", response_model=SupplierMonthlyResponse)
+def get_supplier_monthly(
+    date_from: date_type = Query(...),
+    date_to: date_type = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_report_reader)
+):
+    """Витрати по постачальниках за вказаний період"""
+    purchases = (
+        db.query(Purchase)
+        .filter(
+            Purchase.status == "confirmed",
+            Purchase.date >= date_from,
+            Purchase.date <= date_to,
+        )
+        .all()
+    )
+
+    supplier_map: dict = {}
+    total_amount = Decimal(0)
+
+    for purchase in purchases:
+        sid = purchase.supplier_id
+        supplier_name = purchase.supplier.name if purchase.supplier else str(sid)
+        if sid not in supplier_map:
+            supplier_map[sid] = {
+                "supplier_id": sid,
+                "supplier_name": supplier_name,
+                "total_amount": Decimal(0),
+                "purchases_count": 0,
+                "items": [],
+            }
+        supplier_map[sid]["total_amount"] += purchase.total_amount
+        supplier_map[sid]["purchases_count"] += 1
+        total_amount += purchase.total_amount
+
+        for item in purchase.items:
+            supplier_map[sid]["items"].append(
+                SupplierMonthlyItem(
+                    product_name=item.product.name if item.product else str(item.product_id),
+                    product_code=item.product.code if item.product else "",
+                    quantity=item.quantity,
+                    unit_price=item.unit_price,
+                    total_price=item.total_price,
+                    purchase_number=purchase.number,
+                    date=purchase.date,
+                )
+            )
+
+    suppliers = sorted(
+        [SupplierMonthlyRow(**s) for s in supplier_map.values()],
+        key=lambda x: x.total_amount,
+        reverse=True,
+    )
+
+    return SupplierMonthlyResponse(
+        date_from=date_from,
+        date_to=date_to,
+        total_amount=total_amount,
+        suppliers=suppliers,
+    )
+
+
+@router.get("/abc-analysis", response_model=ABCResponse)
+def get_abc_analysis(
+    date_from: Optional[date_type] = Query(None),
+    date_to: Optional[date_type] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_report_reader)
+):
+    """ABC-аналіз товарів за сумою закупівель"""
+    query = (
+        db.query(
+            Product.id,
+            Product.name,
+            Product.code,
+            ProductCategory.name.label("category_name"),
+            func.sum(PurchaseItem.total_price).label("total_amount"),
+        )
+        .join(PurchaseItem, PurchaseItem.product_id == Product.id)
+        .join(Purchase, Purchase.id == PurchaseItem.purchase_id)
+        .outerjoin(ProductCategory, ProductCategory.id == Product.category_id)
+        .filter(Purchase.status == "confirmed")
+    )
+    if date_from:
+        query = query.filter(Purchase.date >= date_from)
+    if date_to:
+        query = query.filter(Purchase.date <= date_to)
+
+    rows = query.group_by(
+        Product.id, Product.name, Product.code, ProductCategory.name
+    ).order_by(func.sum(PurchaseItem.total_price).desc()).all()
+
+    empty = ABCResponse(
+        date_from=date_from, date_to=date_to,
+        total_amount=Decimal(0), items=[],
+        count_a=0, count_b=0, count_c=0,
+        amount_a=Decimal(0), amount_b=Decimal(0), amount_c=Decimal(0),
+    )
+    if not rows:
+        return empty
+
+    total = sum(Decimal(str(r.total_amount)) for r in rows)
+    if total == 0:
+        return empty
+
+    cumulative = Decimal(0)
+    items = []
+    count_a = count_b = count_c = 0
+    amount_a = amount_b = amount_c = Decimal(0)
+
+    for r in rows:
+        amount = Decimal(str(r.total_amount))
+        pct = (amount / total * 100).quantize(Decimal("0.01"))
+        cumulative += pct
+        abc_class = "A" if cumulative <= 80 else ("B" if cumulative <= 95 else "C")
+
+        items.append(ABCItem(
+            product_id=r.id,
+            product_name=r.name,
+            product_code=r.code,
+            category_name=r.category_name,
+            total_amount=amount,
+            percentage=pct,
+            cumulative_percentage=cumulative.quantize(Decimal("0.01")),
+            abc_class=abc_class,
+        ))
+        if abc_class == "A":
+            count_a += 1; amount_a += amount
+        elif abc_class == "B":
+            count_b += 1; amount_b += amount
+        else:
+            count_c += 1; amount_c += amount
+
+    return ABCResponse(
+        date_from=date_from, date_to=date_to,
+        total_amount=total, items=items,
+        count_a=count_a, count_b=count_b, count_c=count_c,
+        amount_a=amount_a, amount_b=amount_b, amount_c=amount_c,
+    )

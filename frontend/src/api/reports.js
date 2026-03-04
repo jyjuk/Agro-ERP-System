@@ -30,4 +30,19 @@ export const reportsAPI = {
     const response = await client.get('/reports/materials', { params })
     return response.data
   },
+
+  getPriceDynamics: async (params = {}) => {
+    const response = await client.get('/reports/price-dynamics', { params })
+    return response.data
+  },
+
+  getSupplierMonthly: async (params = {}) => {
+    const response = await client.get('/reports/supplier-monthly', { params })
+    return response.data
+  },
+
+  getABCAnalysis: async (params = {}) => {
+    const response = await client.get('/reports/abc-analysis', { params })
+    return response.data
+  },
 }

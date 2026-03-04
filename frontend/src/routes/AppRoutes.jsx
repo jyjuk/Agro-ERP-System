@@ -12,6 +12,7 @@ import ReportsPage from '../pages/reports/ReportsPage'
 import UsersList from '../pages/users/UsersList'
 import TransportPage from '../pages/transport/TransportPage'
 import InventoryCountsPage from '../pages/inventory_counts/InventoryCountsPage'
+import AnalyticsPage from '../pages/analytics/AnalyticsPage'
 import MainLayout from '../components/layout/MainLayout'
 
 const AppRoutes = () => {
@@ -39,6 +40,7 @@ const AppRoutes = () => {
         <Route path="users" element={<UsersList />} />
         <Route path="transport" element={<TransportPage />} />
         <Route path="inventory-counts" element={<InventoryCountsPage />} />
+        <Route path="analytics" element={<AnalyticsPage />} />
       </Route>
     </Routes>
   )
