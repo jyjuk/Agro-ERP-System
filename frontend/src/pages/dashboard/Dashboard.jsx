@@ -135,7 +135,10 @@ const Dashboard = () => {
     total_amount: parseFloat(d.total_amount) || 0,
   }))
   const maxAmount = Math.max(0, ...monthlyPurchases.map(d => d.total_amount))
-  const topSuppliers = data?.top_suppliers || []
+  const topSuppliers = (data?.top_suppliers || []).map(d => ({
+    ...d,
+    total_purchases: parseFloat(d.total_purchases) || 0,
+  }))
   const topProducts = data?.top_products || []
 
   return (
@@ -266,7 +269,7 @@ const Dashboard = () => {
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={topSuppliers} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tick={{ fontSize: 11 }} />
+                <XAxis type="number" tick={{ fontSize: 11 }} domain={[0, 'dataMax']} />
                 <YAxis dataKey="supplier_name" type="category" width={100} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v) => `${parseFloat(v).toLocaleString('uk-UA')} ₴`} />
                 <Bar dataKey="total_purchases" fill="#66bb6a" name="Сума (₴)" />
