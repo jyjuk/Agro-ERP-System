@@ -6,7 +6,7 @@ import {
   DialogActions,
   Button,
   TextField,
-  MenuItem,
+  Autocomplete,
   Table,
   TableBody,
   TableCell,
@@ -75,9 +75,7 @@ export default function CreateWriteOffDialog({ open, onClose, onSuccess }) {
   }
 
   const handleItemChange = (index, field, value) => {
-    const newItems = [...items]
-    newItems[index][field] = value
-    setItems(newItems)
+    setItems(items.map((item, i) => i === index ? { ...item, [field]: value } : item))
   }
 
   const handleAddItem = () => {
@@ -176,23 +174,16 @@ export default function CreateWriteOffDialog({ open, onClose, onSuccess }) {
             InputLabelProps={{ shrink: true }}
           />
 
-          <TextField
-            fullWidth
-            select
-            label="Підрозділ"
-            name="department_id"
-            value={formData.department_id}
-            onChange={handleChange}
-            margin="normal"
-            required
+          <Autocomplete
+            options={departments}
+            getOptionLabel={(opt) => opt.name || ''}
+            value={departments.find(d => d.id === formData.department_id) || null}
+            onChange={(_, newVal) => setFormData({ ...formData, department_id: newVal?.id || '' })}
+            isOptionEqualToValue={(opt, val) => opt.id === val.id}
             disabled={isDepartmentHead()}
-          >
-            {departments.map((dept) => (
-              <MenuItem key={dept.id} value={dept.id}>
-                {dept.name}
-              </MenuItem>
-            ))}
-          </TextField>
+            sx={{ mt: 1, mb: 0.5 }}
+            renderInput={(params) => <TextField {...params} label="Підрозділ" required margin="normal" />}
+          />
 
           <TextField
             fullWidth
@@ -242,22 +233,14 @@ export default function CreateWriteOffDialog({ open, onClose, onSuccess }) {
                 {items.map((item, index) => (
                   <TableRow key={index}>
                     <TableCell>
-                      <TextField
-                        fullWidth
-                        select
-                        size="small"
-                        value={item.product_id}
-                        onChange={(e) =>
-                          handleItemChange(index, 'product_id', e.target.value)
-                        }
-                        required
-                      >
-                        {products.map((product) => (
-                          <MenuItem key={product.id} value={product.id}>
-                            {product.name}
-                          </MenuItem>
-                        ))}
-                      </TextField>
+                      <Autocomplete
+                        options={products}
+                        getOptionLabel={(opt) => opt.name || ''}
+                        value={products.find(p => p.id === parseInt(item.product_id)) || null}
+                        onChange={(_, newVal) => handleItemChange(index, 'product_id', newVal?.id || '')}
+                        isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                        renderInput={(params) => <TextField {...params} size="small" required placeholder="Оберіть товар" />}
+                      />
                     </TableCell>
                     <TableCell>
                       <TextField
