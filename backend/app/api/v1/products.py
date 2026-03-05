@@ -93,7 +93,7 @@ def create_unit(
 @router.get("/", response_model=List[ProductResponse])
 def list_products(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 10000,
     active_only: bool = True,
     product_type: Optional[str] = Query(None, description="Filter by product_type: consumable or spare_part"),
     category_id: Optional[int] = None,

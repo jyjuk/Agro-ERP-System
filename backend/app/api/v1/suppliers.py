@@ -29,7 +29,7 @@ def generate_supplier_code(db: Session) -> str:
 @router.get("/", response_model=List[SupplierResponse])
 def list_suppliers(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 10000,
     active_only: bool = True,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
