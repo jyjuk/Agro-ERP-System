@@ -6,7 +6,7 @@ import {
   DialogActions,
   Button,
   TextField,
-  MenuItem,
+  Autocomplete,
   Alert,
   FormControlLabel,
   Switch,
@@ -178,40 +178,26 @@ export default function UserDialog({ open, onClose, onSuccess, user = null }) {
             required={!isEdit}
           />
 
-          <TextField
-            fullWidth
-            select
-            label="Роль"
-            name="role_id"
-            value={formData.role_id}
-            onChange={handleChange}
-            margin="normal"
-            required
-          >
-            {roles.map((role) => (
-              <MenuItem key={role.id} value={role.id}>
-                {role.name} {role.description && `- ${role.description}`}
-              </MenuItem>
-            ))}
-          </TextField>
+          <Autocomplete
+            options={roles}
+            getOptionLabel={(opt) => opt.description ? `${opt.name} - ${opt.description}` : (opt.name || '')}
+            value={roles.find((r) => r.id === formData.role_id) || null}
+            onChange={(_, newVal) => setFormData({ ...formData, role_id: newVal?.id || '', department_id: '' })}
+            isOptionEqualToValue={(opt, val) => opt.id === val.id}
+            sx={{ mt: 1, mb: 0.5 }}
+            renderInput={(params) => <TextField {...params} label="Роль" required margin="normal" />}
+          />
 
-          {roles.find((r) => r.id === parseInt(formData.role_id))?.name === 'department_head' && (
-            <TextField
-              fullWidth
-              select
-              label="Підрозділ"
-              name="department_id"
-              value={formData.department_id}
-              onChange={handleChange}
-              margin="normal"
-              required
-            >
-              {departments.map((dept) => (
-                <MenuItem key={dept.id} value={dept.id}>
-                  {dept.name}
-                </MenuItem>
-              ))}
-            </TextField>
+          {roles.find((r) => r.id === formData.role_id)?.name === 'department_head' && (
+            <Autocomplete
+              options={departments}
+              getOptionLabel={(opt) => opt.name || ''}
+              value={departments.find((d) => d.id === formData.department_id) || null}
+              onChange={(_, newVal) => setFormData({ ...formData, department_id: newVal?.id || '' })}
+              isOptionEqualToValue={(opt, val) => opt.id === val.id}
+              sx={{ mt: 1, mb: 0.5 }}
+              renderInput={(params) => <TextField {...params} label="Підрозділ" required margin="normal" />}
+            />
           )}
 
           <FormControlLabel

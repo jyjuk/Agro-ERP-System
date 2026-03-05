@@ -6,6 +6,7 @@ import {
   DialogActions,
   Button,
   TextField,
+  Autocomplete,
   Alert,
   FormControlLabel,
   Switch,
@@ -198,26 +199,22 @@ export default function ProductDialog({ open, onClose, onSuccess, product = null
 
             <Grid item xs={12} sm={6}>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-                <TextField
+                <Autocomplete
                   fullWidth
-                  select
-                  label="Категорія"
-                  name="category_id"
-                  value={formData.category_id}
-                  onChange={handleChange}
-                  required
-                >
-                  {categories.map((cat) => (
-                    <MenuItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                  options={categories}
+                  getOptionLabel={(opt) => opt.name || ''}
+                  value={categories.find((c) => c.id === formData.category_id) || null}
+                  onChange={(_, newVal) => setFormData({ ...formData, category_id: newVal?.id || '' })}
+                  isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Категорія" required margin="normal" />
+                  )}
+                />
                 <IconButton
                   color="primary"
                   onClick={handleCreateCategory}
                   title="Створити нову категорію"
-                  sx={{ mt: 1 }}
+                  sx={{ mt: 2 }}
                 >
                   <AddIcon />
                 </IconButton>
@@ -226,26 +223,22 @@ export default function ProductDialog({ open, onClose, onSuccess, product = null
 
             <Grid item xs={12} sm={6}>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-                <TextField
+                <Autocomplete
                   fullWidth
-                  select
-                  label="Одиниця виміру"
-                  name="unit_id"
-                  value={formData.unit_id}
-                  onChange={handleChange}
-                  required
-                >
-                  {units.map((unit) => (
-                    <MenuItem key={unit.id} value={unit.id}>
-                      {unit.name} ({unit.short_name})
-                    </MenuItem>
-                  ))}
-                </TextField>
+                  options={units}
+                  getOptionLabel={(opt) => opt.name ? `${opt.name} (${opt.short_name})` : ''}
+                  value={units.find((u) => u.id === formData.unit_id) || null}
+                  onChange={(_, newVal) => setFormData({ ...formData, unit_id: newVal?.id || '' })}
+                  isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Одиниця виміру" required margin="normal" />
+                  )}
+                />
                 <IconButton
                   color="primary"
                   onClick={handleCreateUnit}
                   title="Створити нову одиницю виміру"
-                  sx={{ mt: 1 }}
+                  sx={{ mt: 2 }}
                 >
                   <AddIcon />
                 </IconButton>
