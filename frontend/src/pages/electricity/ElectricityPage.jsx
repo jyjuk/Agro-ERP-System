@@ -14,7 +14,7 @@ const COEFF_MLYN_1  = 100
 const COEFF_MLYN_2  = 1
 const COEFF_PALETKA = 1000
 
-const n = (v) => parseFloat(v) || 0
+const n = (v) => parseFloat(String(v).replace(',', '.')) || 0
 const fmt = (v) => Number(v || 0).toLocaleString('uk-UA')
 
 const NumField = ({ label, value, onChange, readOnly = false, highlight = false }) => (
