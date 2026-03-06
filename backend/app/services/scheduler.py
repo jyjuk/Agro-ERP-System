@@ -84,7 +84,7 @@ def job_friday_check():
 
 def start_scheduler():
     scheduler.add_job(
-        job_weekly_report,
+        job_weekly_reminder,
         CronTrigger(day_of_week="mon", hour=9, minute=0, timezone="Europe/Kiev"),
         id="weekly_stock_report",
         replace_existing=True,
