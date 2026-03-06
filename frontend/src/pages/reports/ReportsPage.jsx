@@ -128,7 +128,7 @@ const ReportsPage = () => {
       const writeoffParams = { ...dateParams }
       if (filters.filterDepartment) writeoffParams.department_id = filters.filterDepartment
 
-      const [purchase, cost, supplier, department, material, writeoff] = await Promise.all([
+      const results = await Promise.allSettled([
         reportsAPI.getPurchaseReport(purchaseParams),
         reportsAPI.getCostAnalysis(costParams),
         reportsAPI.getSupplierReport(supplierParams),
@@ -136,6 +136,9 @@ const ReportsPage = () => {
         reportsAPI.getMaterialReport(materialParams),
         reportsAPI.getWriteoffReport(writeoffParams),
       ])
+      const [purchase, cost, supplier, department, material, writeoff] = results.map(r =>
+        r.status === 'fulfilled' ? r.value : null
+      )
       setPurchaseReport(purchase)
       setCostAnalysis(cost)
       setSupplierReport(supplier)
