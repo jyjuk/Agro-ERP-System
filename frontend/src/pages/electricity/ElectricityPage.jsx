@@ -56,12 +56,15 @@ export default function ElectricityPage() {
   const [mlyn2End,   setMlyn2End]   = useState('')
   const [paletStart, setPaletStart] = useState('')
   const [paletEnd,   setPaletEnd]   = useState('')
+  const [genStart,   setGenStart]   = useState('')
+  const [genEnd,     setGenEnd]     = useState('')
 
   const clearFields = () => {
     setKtpOld(''); setKtpNew('')
     setMlyn1Start(''); setMlyn1End('')
     setMlyn2Start(''); setMlyn2End('')
     setPaletStart(''); setPaletEnd('')
+    setGenStart(''); setGenEnd('')
   }
 
   const fillFromData = (data) => {
@@ -73,6 +76,8 @@ export default function ElectricityPage() {
     setMlyn2End(data.mlyn2_end || '')
     setPaletStart(data.palet_start || '')
     setPaletEnd(data.palet_end || '')
+    setGenStart(data.gen_start != null ? data.gen_start : '')
+    setGenEnd(data.gen_end != null ? data.gen_end : '')
   }
 
   const loadAllRecords = useCallback(async () => {
@@ -106,6 +111,8 @@ export default function ElectricityPage() {
         mlyn1_start: n(mlyn1Start), mlyn1_end: n(mlyn1End),
         mlyn2_start: n(mlyn2Start), mlyn2_end: n(mlyn2End),
         palet_start: n(paletStart), palet_end: n(paletEnd),
+        gen_start: genStart !== '' ? n(genStart) : null,
+        gen_end:   genEnd   !== '' ? n(genEnd)   : null,
       })
       await loadAllRecords()
       setToast({ open: true, message: `Збережено за ${month}`, severity: 'success' })
@@ -118,11 +125,13 @@ export default function ElectricityPage() {
 
   // Розрахунки
   const ktpTotal  = n(ktpOld) + n(ktpNew)
+  const genKwh    = genStart !== '' && genEnd !== '' ? n(genEnd) - n(genStart) : 0
+  const totalKwh  = ktpTotal + genKwh
   const mlyn1kwh  = (n(mlyn1End) - n(mlyn1Start)) * COEFF_MLYN_1
   const mlyn2kwh  = (n(mlyn2End) - n(mlyn2Start)) * COEFF_MLYN_2
   const mlynTotal = mlyn1kwh + mlyn2kwh
   const paletKwh  = (n(paletEnd) - n(paletStart)) * COEFF_PALETKA
-  const elevator  = ktpTotal - mlynTotal - paletKwh
+  const elevator  = totalKwh - mlynTotal - paletKwh
 
   return (
     <Box>
@@ -213,6 +222,42 @@ export default function ElectricityPage() {
                   </Paper>
                 </Grid>
 
+                {/* Генератор */}
+                <Grid item xs={12}>
+                  <Paper sx={{ p: 2, border: '1px dashed', borderColor: 'warning.main' }}>
+                    <Typography variant="subtitle1" fontWeight={700} gutterBottom color="warning.dark">
+                      Дизельний генератор 550 кВт (необов'язково)
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                      Заповнюй лише якщо генератор працював у цьому місяці. Показники лічильника в кВт·год (× 1).
+                    </Typography>
+                    <Grid container spacing={2} alignItems="center">
+                      <Grid item xs={12} sm={3}>
+                        <MeterField label="Початок місяця" value={genStart} onChange={setGenStart} />
+                      </Grid>
+                      <Grid item xs={12} sm={3}>
+                        <MeterField label="Кінець місяця" value={genEnd} onChange={setGenEnd} />
+                      </Grid>
+                      <Grid item xs={12} sm={3}>
+                        <NumField
+                          label="Спожито (генератор)"
+                          value={genKwh || ''}
+                          readOnly
+                          highlight={genKwh > 0}
+                        />
+                      </Grid>
+                      {genKwh > 0 && (
+                        <Grid item xs={12} sm={3}>
+                          <Typography variant="body2" color="warning.dark" fontWeight={600}>
+                            ⚠ Дорога електроенергія!<br />
+                            Враховано в загальному.
+                          </Typography>
+                        </Grid>
+                      )}
+                    </Grid>
+                  </Paper>
+                </Grid>
+
                 {/* Підсумок */}
                 <Grid item xs={12}>
                   <Paper sx={{ p: 2 }}>
@@ -220,17 +265,21 @@ export default function ElectricityPage() {
                     <Divider sx={{ mb: 2 }} />
                     <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       {[
-                        { label: 'Загальне (КТП1+КТП2)', value: ktpTotal, color: 'text.primary' },
+                        { label: 'КТП (загальне)', value: ktpTotal, color: 'text.primary' },
+                        ...(genKwh > 0 ? [{ label: 'Генератор', value: genKwh, color: 'warning.dark' }] : []),
+                        { label: 'Всього', value: totalKwh, color: 'text.primary', bold: true },
                         { label: 'Млин + склад', value: mlynTotal, color: 'primary.main' },
-                        { label: 'Пелетний цех', value: paletKwh, color: 'warning.main' },
+                        { label: 'Пелетний цех', value: paletKwh, color: 'error.main' },
                         { label: 'Елеватор + офіс', value: elevator, color: 'success.main' },
-                      ].map(({ label, value, color }) => (
+                      ].map(({ label, value, color, bold }) => (
                         <Box key={label}>
                           <Typography variant="caption" color="text.secondary">{label}</Typography>
-                          <Typography variant="h6" color={color}>{fmt(Math.round(value))} кВт·год</Typography>
-                          {ktpTotal > 0 && label !== 'Загальне (КТП1+КТП2)' && (
+                          <Typography variant="h6" color={color} fontWeight={bold ? 700 : 400}>
+                            {fmt(Math.round(value))} кВт·год
+                          </Typography>
+                          {totalKwh > 0 && label !== 'КТП (загальне)' && label !== 'Всього' && (
                             <Typography variant="caption" color="text.secondary">
-                              {(value / ktpTotal * 100).toFixed(1)}%
+                              {(value / totalKwh * 100).toFixed(1)}%
                             </Typography>
                           )}
                         </Box>

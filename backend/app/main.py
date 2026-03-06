@@ -31,6 +31,17 @@ def _run_schema_migrations():
     except Exception:
         pass  # не валимо застосунок через міграцію
 
+    # electricity_records — generator columns
+    try:
+        cols = [c['name'] for c in insp.get_columns('electricity_records')]
+        with engine.begin() as conn:
+            if 'gen_start' not in cols:
+                conn.execute(text("ALTER TABLE electricity_records ADD COLUMN IF NOT EXISTS gen_start NUMERIC(12,2)"))
+            if 'gen_end' not in cols:
+                conn.execute(text("ALTER TABLE electricity_records ADD COLUMN IF NOT EXISTS gen_end NUMERIC(12,2)"))
+    except Exception:
+        pass
+
 
 _run_schema_migrations()
 

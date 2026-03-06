@@ -27,6 +27,10 @@ class ElectricityRecord(Base):
     palet_start = Column(Numeric(12, 4), default=0)
     palet_end   = Column(Numeric(12, 4), default=0)
 
+    # Дизельний генератор 550 кВт (різниця × 1, лічильник вже в кВт·год)
+    gen_start   = Column(Numeric(12, 2), nullable=True)
+    gen_end     = Column(Numeric(12, 2), nullable=True)
+
     created_by  = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at  = Column(DateTime, server_default=func.now())
     updated_at  = Column(DateTime, onupdate=func.now())

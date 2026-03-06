@@ -24,6 +24,8 @@ class ElectricityIn(BaseModel):
     mlyn2_end: float = 0
     palet_start: float = 0
     palet_end: float = 0
+    gen_start: Optional[float] = None
+    gen_end: Optional[float] = None
 
 
 class ElectricityOut(BaseModel):
@@ -37,8 +39,12 @@ class ElectricityOut(BaseModel):
     mlyn2_end: float
     palet_start: float
     palet_end: float
+    gen_start: Optional[float] = None
+    gen_end: Optional[float] = None
     # Розраховані поля
     ktp_total: float
+    gen_kwh: float
+    total_kwh: float        # KTP + генератор
     mlyn1_kwh: float
     mlyn2_kwh: float
     mlyn_total: float
@@ -58,13 +64,17 @@ def _calc(rec: ElectricityRecord) -> dict:
     mlyn2_e   = float(rec.mlyn2_end or 0)
     palet_s   = float(rec.palet_start or 0)
     palet_e   = float(rec.palet_end or 0)
+    gen_s     = float(rec.gen_start) if rec.gen_start is not None else None
+    gen_e     = float(rec.gen_end) if rec.gen_end is not None else None
 
     ktp_total  = ktp_old + ktp_new
+    gen_kwh    = (gen_e - gen_s) if (gen_s is not None and gen_e is not None) else 0.0
+    total_kwh  = ktp_total + gen_kwh
     mlyn1_kwh  = (mlyn1_e - mlyn1_s) * 100
     mlyn2_kwh  = (mlyn2_e - mlyn2_s) * 1
     mlyn_total = mlyn1_kwh + mlyn2_kwh
     palet_kwh  = (palet_e - palet_s) * 1000
-    elevator   = ktp_total - mlyn_total - palet_kwh
+    elevator   = total_kwh - mlyn_total - palet_kwh
 
     return {
         "id": rec.id,
@@ -77,7 +87,11 @@ def _calc(rec: ElectricityRecord) -> dict:
         "mlyn2_end": mlyn2_e,
         "palet_start": palet_s,
         "palet_end": palet_e,
+        "gen_start": gen_s,
+        "gen_end": gen_e,
         "ktp_total": ktp_total,
+        "gen_kwh": gen_kwh,
+        "total_kwh": total_kwh,
         "mlyn1_kwh": mlyn1_kwh,
         "mlyn2_kwh": mlyn2_kwh,
         "mlyn_total": mlyn_total,
@@ -116,6 +130,8 @@ def save_month(
         rec.mlyn2_end   = data.mlyn2_end
         rec.palet_start = data.palet_start
         rec.palet_end   = data.palet_end
+        rec.gen_start   = data.gen_start
+        rec.gen_end     = data.gen_end
     else:
         rec = ElectricityRecord(
             month       = data.month,
@@ -127,6 +143,8 @@ def save_month(
             mlyn2_end   = data.mlyn2_end,
             palet_start = data.palet_start,
             palet_end   = data.palet_end,
+            gen_start   = data.gen_start,
+            gen_end     = data.gen_end,
             created_by  = current_user.id,
         )
         db.add(rec)

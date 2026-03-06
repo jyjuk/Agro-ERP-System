@@ -13,8 +13,8 @@ import * as XLSX from 'xlsx'
 import { format } from 'date-fns'
 
 const MONTHS_UK = ['Січ','Лют','Бер','Кві','Тра','Чер','Лип','Сер','Вер','Жов','Лис','Гру']
-const COLORS = { mlyn: '#1976d2', palet: '#e65100', elevator: '#2e7d32', total: '#6a1b9a' }
-const PIE_COLORS = [COLORS.mlyn, COLORS.palet, COLORS.elevator]
+const COLORS = { mlyn: '#1976d2', palet: '#e65100', elevator: '#2e7d32', total: '#6a1b9a', gen: '#f57f17' }
+const PIE_COLORS = [COLORS.mlyn, COLORS.palet, COLORS.elevator, COLORS.gen]
 
 const fmtNum = (v) => Number(v || 0).toLocaleString('uk-UA')
 const monthLabel = (m) => {
@@ -51,6 +51,9 @@ export default function ElectricityAnalytics({ records }) {
   const [compareYear2, setCompareYear2] = useState(years[1] || years[0] || '')
   const [pieMonth, setPieMonth] = useState(records[0]?.month || '')
 
+  // Чи є хоч один місяць з генератором
+  const hasGenerator = useMemo(() => records.some(r => r.gen_kwh > 0), [records])
+
   // 1. Дані для графіку динаміки (відфільтровано по року)
   const dynamicData = useMemo(() =>
     records
@@ -61,6 +64,7 @@ export default function ElectricityAnalytics({ records }) {
         'Млин': Math.round(r.mlyn_total),
         'Пелетний': Math.round(r.palet_kwh),
         'Елеватор': Math.round(r.elevator_kwh),
+        ...(r.gen_kwh > 0 ? { 'Генератор': Math.round(r.gen_kwh) } : {}),
       })),
     [records, yearFilter]
   )
@@ -73,6 +77,7 @@ export default function ElectricityAnalytics({ records }) {
       { name: 'Млин', value: Math.round(r.mlyn_total) },
       { name: 'Пелетний', value: Math.round(r.palet_kwh) },
       { name: 'Елеватор', value: Math.round(r.elevator_kwh) },
+      ...(r.gen_kwh > 0 ? [{ name: 'Генератор', value: Math.round(r.gen_kwh) }] : []),
     ]
   }, [records, pieMonth])
 
@@ -96,9 +101,11 @@ export default function ElectricityAnalytics({ records }) {
     tableYears.forEach(y => {
       const rows = tableByYear[y].filter(Boolean)
       t[y] = {
-        total: rows.reduce((s, r) => s + r.ktp_total, 0),
-        mlyn: rows.reduce((s, r) => s + r.mlyn_total, 0),
-        palet: rows.reduce((s, r) => s + r.palet_kwh, 0),
+        ktp:      rows.reduce((s, r) => s + r.ktp_total, 0),
+        gen:      rows.reduce((s, r) => s + (r.gen_kwh || 0), 0),
+        total:    rows.reduce((s, r) => s + r.total_kwh, 0),
+        mlyn:     rows.reduce((s, r) => s + r.mlyn_total, 0),
+        palet:    rows.reduce((s, r) => s + r.palet_kwh, 0),
         elevator: rows.reduce((s, r) => s + r.elevator_kwh, 0),
       }
     })
@@ -123,7 +130,7 @@ export default function ElectricityAnalytics({ records }) {
   // Експорт таблиці
   const handleExport = () => {
     const wb = XLSX.utils.book_new()
-    const headers = ['Місяць', 'Загальне', 'Млин', 'Пелетний', 'Елеватор']
+    const headers = ['Місяць', 'КТП', 'Генератор', 'Всього', 'Млин', 'Пелетний', 'Елеватор']
     const rows = []
     tableYears.forEach(y => {
       tableByYear[y].forEach((r, i) => {
@@ -131,13 +138,15 @@ export default function ElectricityAnalytics({ records }) {
         rows.push([
           `${MONTHS_UK[i]} ${y}`,
           Math.round(r.ktp_total),
+          r.gen_kwh > 0 ? Math.round(r.gen_kwh) : '',
+          Math.round(r.total_kwh),
           Math.round(r.mlyn_total),
           Math.round(r.palet_kwh),
           Math.round(r.elevator_kwh),
         ])
       })
       const t = yearTotals[y]
-      rows.push([`Разом ${y}`, Math.round(t.total), Math.round(t.mlyn), Math.round(t.palet), Math.round(t.elevator)])
+      rows.push([`Разом ${y}`, Math.round(t.ktp), Math.round(t.gen), Math.round(t.total), Math.round(t.mlyn), Math.round(t.palet), Math.round(t.elevator)])
       rows.push([])
     })
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
@@ -179,7 +188,8 @@ export default function ElectricityAnalytics({ records }) {
             <Legend />
             <Bar dataKey="Млин" stackId="a" fill={COLORS.mlyn} />
             <Bar dataKey="Пелетний" stackId="a" fill={COLORS.palet} />
-            <Bar dataKey="Елеватор" stackId="a" fill={COLORS.elevator} radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Елеватор" stackId="a" fill={COLORS.elevator} />
+            {hasGenerator && <Bar dataKey="Генератор" stackId="a" fill={COLORS.gen} radius={[4, 4, 0, 0]} />}
           </BarChart>
         </ResponsiveContainer>
       </Paper>
@@ -263,7 +273,9 @@ export default function ElectricityAnalytics({ records }) {
             <TableHead>
               <TableRow>
                 <TableCell>Місяць</TableCell>
-                <TableCell align="right">Загальне</TableCell>
+                <TableCell align="right">КТП</TableCell>
+                {hasGenerator && <TableCell align="right" sx={{ color: 'warning.dark' }}>Генератор</TableCell>}
+                <TableCell align="right">Всього</TableCell>
                 <TableCell align="right">Млин</TableCell>
                 <TableCell align="right">Пелетний</TableCell>
                 <TableCell align="right">Елеватор</TableCell>
@@ -275,6 +287,12 @@ export default function ElectricityAnalytics({ records }) {
                   <TableRow key={`${y}-${i}`} hover>
                     <TableCell>{MONTHS_UK[i]} {y}</TableCell>
                     <TableCell align="right">{fmtNum(Math.round(r.ktp_total))}</TableCell>
+                    {hasGenerator && (
+                      <TableCell align="right" sx={{ color: r.gen_kwh > 0 ? 'warning.dark' : 'text.disabled' }}>
+                        {r.gen_kwh > 0 ? fmtNum(Math.round(r.gen_kwh)) : '—'}
+                      </TableCell>
+                    )}
+                    <TableCell align="right">{fmtNum(Math.round(r.total_kwh))}</TableCell>
                     <TableCell align="right">{fmtNum(Math.round(r.mlyn_total))}</TableCell>
                     <TableCell align="right">{fmtNum(Math.round(r.palet_kwh))}</TableCell>
                     <TableCell align="right">{fmtNum(Math.round(r.elevator_kwh))}</TableCell>
@@ -282,6 +300,12 @@ export default function ElectricityAnalytics({ records }) {
                 ) : null),
                 <TableRow key={`total-${y}`} sx={{ bgcolor: 'primary.50' }}>
                   <TableCell><strong>Разом {y}</strong></TableCell>
+                  <TableCell align="right"><strong>{fmtNum(Math.round(yearTotals[y].ktp))}</strong></TableCell>
+                  {hasGenerator && (
+                    <TableCell align="right" sx={{ color: 'warning.dark' }}>
+                      <strong>{yearTotals[y].gen > 0 ? fmtNum(Math.round(yearTotals[y].gen)) : '—'}</strong>
+                    </TableCell>
+                  )}
                   <TableCell align="right"><strong>{fmtNum(Math.round(yearTotals[y].total))}</strong></TableCell>
                   <TableCell align="right"><strong>{fmtNum(Math.round(yearTotals[y].mlyn))}</strong></TableCell>
                   <TableCell align="right"><strong>{fmtNum(Math.round(yearTotals[y].palet))}</strong></TableCell>
