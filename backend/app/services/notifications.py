@@ -14,8 +14,11 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+_TG_LIMIT = 4000
+
+
 def send_telegram(text: str) -> bool:
-    """Надіслати повідомлення через Telegram Bot API. Повертає True якщо успішно."""
+    """Надіслати повідомлення через Telegram Bot API. Довгі тексти розбиває на частини."""
     token = settings.TELEGRAM_BOT_TOKEN
     chat_id = settings.TELEGRAM_CHAT_ID
 
@@ -23,17 +26,31 @@ def send_telegram(text: str) -> bool:
         logger.debug("Telegram не налаштований — пропускаємо сповіщення")
         return False
 
+    # Розбиваємо по рядках щоб не розрізати слова
+    chunks: list[str] = []
+    current = ""
+    for line in text.splitlines(keepends=True):
+        if len(current) + len(line) > _TG_LIMIT:
+            if current:
+                chunks.append(current)
+            current = line
+        else:
+            current += line
+    if current:
+        chunks.append(current)
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
     try:
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
-        with httpx.Client(timeout=5.0) as client:
-            resp = client.post(url, json={
-                "chat_id": chat_id,
-                "text": text,
-                "parse_mode": "HTML",
-            })
-        if resp.status_code != 200:
-            logger.warning(f"Telegram API помилка {resp.status_code}: {resp.text}")
-            return False
+        with httpx.Client(timeout=10.0) as client:
+            for chunk in chunks:
+                resp = client.post(url, json={
+                    "chat_id": chat_id,
+                    "text": chunk,
+                    "parse_mode": "HTML",
+                })
+                if resp.status_code != 200:
+                    logger.warning(f"Telegram API помилка {resp.status_code}: {resp.text}")
+                    return False
         return True
     except Exception as e:
         logger.warning(f"Telegram: не вдалося надіслати — {e}")
