@@ -270,7 +270,7 @@ const ReportsPage = () => {
               rows: (() => {
                 const rows = []
                 ;(costAnalysis?.department_breakdown || []).forEach(d => {
-                  rows.push([`▶ ${d.department_name}`, `Залишки: ${fmt(d.inventory_value)} ₴`, `Отримано: ${fmt(d.transfers_received)} ₴`, `Відправлено: ${fmt(d.transfers_sent)} ₴`, `Списано: ${fmt(d.writeoffs_value)} ₴`, '', '', ''])
+                  rows.push([`▶ ${d.department_name}`, `Залишки: ${fmt(d.inventory_value)} ₴`, `Переміщено (вхід): ${fmt(d.transfers_received)} ₴`, `Переміщено (вихід): ${fmt(d.transfers_sent)} ₴`, `Списано: ${fmt(d.writeoffs_value)} ₴`, '', '', ''])
                   ;(d.materials || []).forEach(m => {
                     rows.push(['', m.product_name, m.category_name || '—', m.unit_name || '', fmt(m.purchased_quantity), fmt(m.purchased_value), fmt(m.writeoff_quantity), fmt(m.writeoff_value)])
                   })
@@ -596,8 +596,8 @@ const ReportsPage = () => {
                 <Box sx={{ display: 'flex', gap: 4, p: 1.5, bgcolor: 'grey.100', borderRadius: 1, mb: 0.5, flexWrap: 'wrap' }}>
                   <Typography fontWeight={700}>{dept.department_name}</Typography>
                   <Typography variant="body2">Залишки: <strong>{fmt(dept.inventory_value)} ₴</strong></Typography>
-                  <Typography variant="body2">Отримано: <strong>{fmt(dept.transfers_received)} ₴</strong></Typography>
-                  <Typography variant="body2">Відправлено: <strong>{fmt(dept.transfers_sent)} ₴</strong></Typography>
+                  <Typography variant="body2">Переміщено (вхід): <strong>{fmt(dept.transfers_received)} ₴</strong></Typography>
+                  <Typography variant="body2">Переміщено (вихід): <strong>{fmt(dept.transfers_sent)} ₴</strong></Typography>
                   <Typography variant="body2" color="error.main">Списано: <strong>{fmt(dept.writeoffs_value)} ₴</strong></Typography>
                 </Box>
                 {(dept.materials || []).length > 0 && (
