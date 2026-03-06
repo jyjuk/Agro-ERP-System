@@ -28,6 +28,7 @@ const shortLabel = (m) => {
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
+  const genKwh = payload[0]?.payload?._gen_kwh || 0
   return (
     <Paper sx={{ p: 1.5, fontSize: 13 }}>
       <Typography variant="caption" fontWeight={700}>{label}</Typography>
@@ -36,6 +37,11 @@ const CustomTooltip = ({ active, payload, label }) => {
           {p.name}: <strong>{fmtNum(p.value)} кВт·год</strong>
         </Box>
       ))}
+      {genKwh > 0 && (
+        <Box sx={{ color: COLORS.gen, mt: 0.5, borderTop: '1px solid #eee', pt: 0.5 }}>
+          + Генератор: <strong>{fmtNum(Math.round(genKwh))} кВт·год</strong>
+        </Box>
+      )}
     </Paper>
   )
 }
@@ -60,16 +66,16 @@ export default function ElectricityAnalytics({ records }) {
       .filter(r => !yearFilter || r.month.startsWith(yearFilter))
       .sort((a, b) => a.month.localeCompare(b.month))
       .map(r => ({
-        name: shortLabel(r.month),
+        name: shortLabel(r.month) + (r.gen_kwh > 0 ? ' ⚡' : ''),
         'Млин': Math.round(r.mlyn_total),
         'Пелетний': Math.round(r.palet_kwh),
         'Елеватор': Math.round(r.elevator_kwh),
-        ...(r.gen_kwh > 0 ? { 'Генератор': Math.round(r.gen_kwh) } : {}),
+        _gen_kwh: r.gen_kwh || 0,
       })),
     [records, yearFilter]
   )
 
-  // 2. Дані для кругової діаграми
+  // 2. Дані для кругової діаграми — тільки споживачі
   const pieData = useMemo(() => {
     const r = records.find(x => x.month === pieMonth)
     if (!r) return []
@@ -77,7 +83,6 @@ export default function ElectricityAnalytics({ records }) {
       { name: 'Млин', value: Math.round(r.mlyn_total) },
       { name: 'Пелетний', value: Math.round(r.palet_kwh) },
       { name: 'Елеватор', value: Math.round(r.elevator_kwh) },
-      ...(r.gen_kwh > 0 ? [{ name: 'Генератор', value: Math.round(r.gen_kwh) }] : []),
     ]
   }, [records, pieMonth])
 
@@ -188,10 +193,14 @@ export default function ElectricityAnalytics({ records }) {
             <Legend />
             <Bar dataKey="Млин" stackId="a" fill={COLORS.mlyn} />
             <Bar dataKey="Пелетний" stackId="a" fill={COLORS.palet} />
-            <Bar dataKey="Елеватор" stackId="a" fill={COLORS.elevator} />
-            {hasGenerator && <Bar dataKey="Генератор" stackId="a" fill={COLORS.gen} radius={[4, 4, 0, 0]} />}
+            <Bar dataKey="Елеватор" stackId="a" fill={COLORS.elevator} radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
+        {hasGenerator && (
+          <Typography variant="caption" color="warning.dark" sx={{ display: 'block', mt: 1, ml: 1 }}>
+            ⚡ — місяць з роботою генератора (наведи на стовпець для деталей)
+          </Typography>
+        )}
       </Paper>
 
       {/* 2. Структура за місяць */}
