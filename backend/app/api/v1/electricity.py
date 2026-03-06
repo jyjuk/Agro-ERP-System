@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 from decimal import Decimal
-from app.api.deps import get_db, get_current_user
+from app.api.deps import get_db, get_current_user, get_current_admin_user
 from app.models.electricity import ElectricityRecord
 from app.models.user import User
 
@@ -103,7 +103,7 @@ def get_month(
 def save_month(
     data: ElectricityIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin_user),
 ):
     """Зберегти або оновити дані за місяць."""
     rec = db.query(ElectricityRecord).filter(ElectricityRecord.month == data.month).first()
