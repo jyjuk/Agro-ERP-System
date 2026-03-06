@@ -6,6 +6,7 @@ from app.models.product import Product
 from app.models.department import Department
 from app.models.user import User
 from app.services.notifications import send_telegram, notify_low_stock
+from app.services.scheduler import build_stock_report
 
 router = APIRouter()
 
@@ -52,7 +53,21 @@ def test_notification(
 ):
     """Тестове повідомлення — перевірити що Telegram налаштований."""
     success = send_telegram(
-        "✅ <b>Telegram підключено!</b>\n"
-        "🌾 ERP система агробізнесу працює."
+        "<b>Telegram підключено!</b>\n"
+        "ERP система агробізнесу працює."
     )
     return {"success": success, "message": "OK" if success else "Telegram не налаштований (перевір TOKEN і CHAT_ID в .env)"}
+
+
+@router.post("/send-stock-report")
+def send_stock_report_now(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Надіслати звіт залишків зараз (ручний тест scheduler)."""
+    from datetime import date
+    report = build_stock_report(db)
+    today_str = date.today().strftime("%d.%m.%Y")
+    text = f"Звіт залишків (ручний запуск)\n{today_str}{report}"
+    success = send_telegram(text)
+    return {"success": success}
