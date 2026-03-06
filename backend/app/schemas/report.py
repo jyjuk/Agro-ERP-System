@@ -264,6 +264,34 @@ class SupplierMonthlyResponse(BaseModel):
     suppliers: List[SupplierMonthlyRow]
 
 
+# Write-off Report
+class WriteoffMaterialRow(BaseModel):
+    product_id: int
+    product_name: str
+    product_code: str
+    category_name: Optional[str] = None
+    unit_name: Optional[str] = None
+    total_quantity: Decimal
+    total_amount: Decimal
+    writeoff_count: int
+
+
+class WriteoffDepartmentData(BaseModel):
+    department_id: int
+    department_name: str
+    total_amount: Decimal
+    documents_count: int
+    materials: List[WriteoffMaterialRow]
+
+
+class WriteoffReportResponse(BaseModel):
+    date_from: Optional[date] = None
+    date_to: Optional[date] = None
+    total_amount: Decimal
+    total_documents: int
+    departments: List[WriteoffDepartmentData]
+
+
 # #3 ABC Analysis
 class ABCItem(BaseModel):
     product_id: int

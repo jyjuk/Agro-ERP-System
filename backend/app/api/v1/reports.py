@@ -35,6 +35,9 @@ from app.schemas.report import (
     SupplierMonthlyItem,
     ABCResponse,
     ABCItem,
+    WriteoffReportResponse,
+    WriteoffDepartmentData,
+    WriteoffMaterialRow,
 )
 from app.models.user import User
 from app.models.purchase import Purchase, PurchaseItem
@@ -1239,4 +1242,109 @@ def get_abc_analysis(
         total_amount=total, items=items,
         count_a=count_a, count_b=count_b, count_c=count_c,
         amount_a=amount_a, amount_b=amount_b, amount_c=amount_c,
+    )
+
+
+@router.get("/writeoffs", response_model=WriteoffReportResponse)
+def get_writeoff_report(
+    date_from: Optional[date_type] = None,
+    date_to: Optional[date_type] = None,
+    department_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_report_reader),
+):
+    """
+    Звіт по списаннях за підрозділами і матеріалами за обраний період.
+    Показує: підрозділ → матеріал → кількість, сума.
+    """
+    # Один запит: агрегуємо по підрозділу + товару
+    rows = (
+        db.query(
+            WriteOff.department_id,
+            Department.name.label("department_name"),
+            WriteOffItem.product_id,
+            Product.name.label("product_name"),
+            Product.code.label("product_code"),
+            ProductCategory.name.label("category_name"),
+            Unit.short_name.label("unit_name"),
+            func.sum(WriteOffItem.quantity).label("total_quantity"),
+            func.sum(WriteOffItem.total_cost).label("total_amount"),
+            func.count(func.distinct(WriteOff.id)).label("writeoff_count"),
+        )
+        .join(Department, WriteOff.department_id == Department.id)
+        .join(WriteOffItem, WriteOffItem.writeoff_id == WriteOff.id)
+        .join(Product, WriteOffItem.product_id == Product.id)
+        .outerjoin(ProductCategory, Product.category_id == ProductCategory.id)
+        .outerjoin(Unit, Product.unit_id == Unit.id)
+        .filter(WriteOff.status == "confirmed")
+    )
+    if date_from:
+        rows = rows.filter(WriteOff.date >= date_from)
+    if date_to:
+        rows = rows.filter(WriteOff.date <= date_to)
+    if department_id:
+        rows = rows.filter(WriteOff.department_id == department_id)
+
+    rows = rows.group_by(
+        WriteOff.department_id, Department.name,
+        WriteOffItem.product_id, Product.name, Product.code,
+        ProductCategory.name, Unit.short_name,
+    ).order_by(Department.name, func.sum(WriteOffItem.total_cost).desc()).all()
+
+    # Рахуємо загальну кількість документів
+    doc_count_q = db.query(func.count(WriteOff.id)).filter(WriteOff.status == "confirmed")
+    if date_from:
+        doc_count_q = doc_count_q.filter(WriteOff.date >= date_from)
+    if date_to:
+        doc_count_q = doc_count_q.filter(WriteOff.date <= date_to)
+    if department_id:
+        doc_count_q = doc_count_q.filter(WriteOff.department_id == department_id)
+    total_documents = doc_count_q.scalar() or 0
+
+    # Групуємо в Python по підрозділу
+    dept_map: dict = {}
+    total_amount = Decimal(0)
+
+    for r in rows:
+        did = r.department_id
+        if did not in dept_map:
+            dept_map[did] = {
+                "department_id": did,
+                "department_name": r.department_name,
+                "total_amount": Decimal(0),
+                "materials": [],
+            }
+        mat_amount = Decimal(str(r.total_amount)) if r.total_amount else Decimal(0)
+        dept_map[did]["total_amount"] += mat_amount
+        total_amount += mat_amount
+        dept_map[did]["materials"].append(WriteoffMaterialRow(
+            product_id=r.product_id,
+            product_name=r.product_name,
+            product_code=r.product_code,
+            category_name=r.category_name,
+            unit_name=r.unit_name,
+            total_quantity=Decimal(str(r.total_quantity)) if r.total_quantity else Decimal(0),
+            total_amount=mat_amount,
+            writeoff_count=r.writeoff_count or 0,
+        ))
+
+    departments = [
+        WriteoffDepartmentData(
+            department_id=d["department_id"],
+            department_name=d["department_name"],
+            total_amount=d["total_amount"],
+            documents_count=total_documents if department_id else sum(
+                m.writeoff_count for m in d["materials"]
+            ) // max(len(d["materials"]), 1),
+            materials=d["materials"],
+        )
+        for d in dept_map.values()
+    ]
+
+    return WriteoffReportResponse(
+        date_from=date_from,
+        date_to=date_to,
+        total_amount=total_amount,
+        total_documents=total_documents,
+        departments=departments,
     )

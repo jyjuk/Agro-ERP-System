@@ -39,9 +39,10 @@ const TAB_FILTERS = {
   2: ['date', 'supplier'],                         // Постачальники
   3: ['date', 'department'],                       // Підрозділи
   4: ['date', 'category', 'department', 'product'], // Матеріали
+  5: ['date', 'department'],                       // Списання
 }
 
-const TAB_LABELS = ['Закупівлі', 'Аналіз витрат', 'Постачальники', 'Підрозділи', 'Матеріали']
+const TAB_LABELS = ['Закупівлі', 'Аналіз витрат', 'Постачальники', 'Підрозділи', 'Матеріали', 'Списання']
 
 const fmt = (val, decimals = 2) => parseFloat(val || 0).toFixed(decimals)
 const fmtDate = (d) => {
@@ -56,6 +57,7 @@ const ReportsPage = () => {
   const [supplierReport, setSupplierReport] = useState(null)
   const [departmentReport, setDepartmentReport] = useState(null)
   const [materialReport, setMaterialReport] = useState(null)
+  const [writeoffReport, setWriteoffReport] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -123,18 +125,23 @@ const ReportsPage = () => {
       if (filters.filterCategory) materialParams.category_id = filters.filterCategory
       if (filters.filterDepartment) materialParams.department_id = filters.filterDepartment
 
-      const [purchase, cost, supplier, department, material] = await Promise.all([
+      const writeoffParams = { ...dateParams }
+      if (filters.filterDepartment) writeoffParams.department_id = filters.filterDepartment
+
+      const [purchase, cost, supplier, department, material, writeoff] = await Promise.all([
         reportsAPI.getPurchaseReport(purchaseParams),
         reportsAPI.getCostAnalysis(costParams),
         reportsAPI.getSupplierReport(supplierParams),
         reportsAPI.getDepartmentReport(departmentParams),
         reportsAPI.getMaterialReport(materialParams),
+        reportsAPI.getWriteoffReport(writeoffParams),
       ])
       setPurchaseReport(purchase)
       setCostAnalysis(cost)
       setSupplierReport(supplier)
       setDepartmentReport(department)
       setMaterialReport(material)
+      setWriteoffReport(writeoff)
     } catch (err) {
       setError(err.message || 'Помилка завантаження звітів')
     } finally {
@@ -314,6 +321,17 @@ const ReportsPage = () => {
             ])
           }]
         }
+      }
+      case 5: {
+        const headers = ['Підрозділ', 'Матеріал', 'Код', 'Категорія', 'Одиниця', 'Кількість', 'Сума (₴)', 'Документів']
+        const rows = []
+        ;(writeoffReport?.departments || []).forEach(d => {
+          rows.push([`▶ ${d.department_name}`, `Разом: ${fmt(d.total_amount)} ₴`, '', '', '', '', fmt(d.total_amount), d.documents_count])
+          d.materials.forEach(m => {
+            rows.push(['', m.product_name, m.product_code, m.category_name || '—', m.unit_name || '', fmt(m.total_quantity), fmt(m.total_amount), m.writeoff_count])
+          })
+        })
+        return { filename: 'spysannya', sheets: [{ name: 'Списання', headers, rows }] }
       }
       default: return null
     }
@@ -721,6 +739,59 @@ const ReportsPage = () => {
                     </Table>
                   </TableContainer>
                 )}
+              </Box>
+            ))
+          )}
+        </Paper>
+      )}
+
+      {/* Вкладка 5: Списання */}
+      {!loading && tab === 5 && writeoffReport && (
+        <Paper sx={{ p: 2 }}>
+          <Typography variant="h6" gutterBottom>Звіт по списаннях</Typography>
+          <Stack direction="row" spacing={3} sx={{ mb: 3, flexWrap: 'wrap' }}>
+            <Typography>Загальна сума: <strong>{fmt(writeoffReport.total_amount)} ₴</strong></Typography>
+            <Typography>Документів: <strong>{writeoffReport.total_documents}</strong></Typography>
+          </Stack>
+          {(writeoffReport.departments || []).length === 0 ? (
+            <Typography color="text.secondary" align="center" sx={{ py: 3 }}>Немає даних за вказаний період</Typography>
+          ) : (
+            (writeoffReport.departments || []).map(d => (
+              <Box key={d.department_id} sx={{ mb: 3 }}>
+                <Box sx={{ display: 'flex', gap: 4, p: 1.5, bgcolor: 'error.50', borderRadius: 1, mb: 0.5, flexWrap: 'wrap' }}>
+                  <Typography fontWeight={700}>{d.department_name}</Typography>
+                  <Typography variant="body2">Документів: <strong>{d.documents_count}</strong></Typography>
+                  <Typography variant="body2" color="error.main" sx={{ ml: 'auto' }}>
+                    Списано: <strong>{fmt(d.total_amount)} ₴</strong>
+                  </Typography>
+                </Box>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: 'grey.50' }}>
+                        <TableCell>Матеріал</TableCell>
+                        <TableCell>Категорія</TableCell>
+                        <TableCell align="right">Кількість</TableCell>
+                        <TableCell align="right">Сума списано</TableCell>
+                        <TableCell align="right">Документів</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {d.materials.map(m => (
+                        <TableRow key={m.product_id}>
+                          <TableCell>
+                            {m.product_name}
+                            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>{m.product_code}</Typography>
+                          </TableCell>
+                          <TableCell>{m.category_name || '—'}</TableCell>
+                          <TableCell align="right">{fmt(m.total_quantity)} {m.unit_name || ''}</TableCell>
+                          <TableCell align="right"><strong>{fmt(m.total_amount)} ₴</strong></TableCell>
+                          <TableCell align="right">{m.writeoff_count}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               </Box>
             ))
           )}

@@ -45,4 +45,9 @@ export const reportsAPI = {
     const response = await client.get('/reports/abc-analysis', { params })
     return response.data
   },
+
+  getWriteoffReport: async (params = {}) => {
+    const response = await client.get('/reports/writeoffs', { params })
+    return response.data
+  },
 }
