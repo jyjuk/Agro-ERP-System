@@ -6,7 +6,7 @@ from app.models.product import Product
 from app.models.department import Department
 from app.models.user import User
 from app.services.notifications import send_telegram, notify_low_stock
-from app.services.scheduler import build_stock_report
+from app.services.scheduler import build_low_stock_report
 
 router = APIRouter()
 
@@ -64,10 +64,13 @@ def send_stock_report_now(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Надіслати звіт залишків зараз (ручний тест scheduler)."""
+    """Надіслати low-stock звіт зараз (ручний тест scheduler)."""
     from datetime import date
-    report = build_stock_report(db)
+    report = build_low_stock_report(db)
     today_str = date.today().strftime("%d.%m.%Y")
-    text = f"Звіт залишків (ручний запуск)\n{today_str}{report}"
+    if report:
+        text = f"Low-stock звіт (ручний запуск)\n{today_str}\n\n{report}"
+    else:
+        text = f"Залишки в нормі (ручний запуск)\n{today_str}"
     success = send_telegram(text)
     return {"success": success}
