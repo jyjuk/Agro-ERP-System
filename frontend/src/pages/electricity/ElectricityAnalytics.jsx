@@ -57,6 +57,13 @@ export default function ElectricityAnalytics({ records }) {
   const [compareYear2, setCompareYear2] = useState(years[1] || years[0] || '')
   const [pieMonth, setPieMonth] = useState(records[0]?.month || '')
 
+  const sortedMonths = useMemo(() =>
+    [...records].sort((a, b) => b.month.localeCompare(a.month)),
+    [records]
+  )
+  const [cmpMonth1, setCmpMonth1] = useState(sortedMonths[1]?.month || sortedMonths[0]?.month || '')
+  const [cmpMonth2, setCmpMonth2] = useState(sortedMonths[0]?.month || '')
+
   // Чи є хоч один місяць з генератором
   const hasGenerator = useMemo(() => records.some(r => r.gen_kwh > 0), [records])
 
@@ -116,6 +123,22 @@ export default function ElectricityAnalytics({ records }) {
     })
     return t
   }, [tableByYear, tableYears])
+
+  // 3.5 Порівняння місяць до місяця
+  const momData = useMemo(() => {
+    const r1 = records.find(r => r.month === cmpMonth1)
+    const r2 = records.find(r => r.month === cmpMonth2)
+    if (!r1 && !r2) return { rows: [], r1: null, r2: null }
+    const lbl1 = cmpMonth1 ? monthLabel(cmpMonth1) : '—'
+    const lbl2 = cmpMonth2 ? monthLabel(cmpMonth2) : '—'
+    const rows = [
+      { name: 'Млин',     [lbl1]: r1 ? Math.round(r1.mlyn_total)  : null, [lbl2]: r2 ? Math.round(r2.mlyn_total)  : null },
+      { name: 'Пелетний', [lbl1]: r1 ? Math.round(r1.palet_kwh)   : null, [lbl2]: r2 ? Math.round(r2.palet_kwh)   : null },
+      { name: 'Елеватор', [lbl1]: r1 ? Math.round(r1.elevator_kwh): null, [lbl2]: r2 ? Math.round(r2.elevator_kwh): null },
+      { name: 'Всього',   [lbl1]: r1 ? Math.round(r1.total_kwh)   : null, [lbl2]: r2 ? Math.round(r2.total_kwh)   : null },
+    ]
+    return { rows, lbl1, lbl2, r1, r2 }
+  }, [records, cmpMonth1, cmpMonth2])
 
   // 4. Порівняння рік до року
   const yoyData = useMemo(() => {
@@ -324,6 +347,77 @@ export default function ElectricityAnalytics({ records }) {
             </TableBody>
           </Table>
         </TableContainer>
+      </Paper>
+
+      {/* 3.5. Порівняння місяць до місяця */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 2, flexWrap: 'wrap' }}>
+          <Typography variant="h6">Порівняння місяць до місяця</Typography>
+          <Stack direction="row" spacing={1} sx={{ ml: 'auto' }}>
+            <TextField select size="small" value={cmpMonth1}
+              onChange={e => setCmpMonth1(e.target.value)} sx={{ width: 150 }}>
+              {sortedMonths.map(r => (
+                <MenuItem key={r.month} value={r.month}>{monthLabel(r.month)}</MenuItem>
+              ))}
+            </TextField>
+            <TextField select size="small" value={cmpMonth2}
+              onChange={e => setCmpMonth2(e.target.value)} sx={{ width: 150 }}>
+              {sortedMonths.map(r => (
+                <MenuItem key={r.month} value={r.month}>{monthLabel(r.month)}</MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+        </Box>
+
+        {momData.rows.length === 0 ? (
+          <Typography color="text.secondary" align="center" sx={{ py: 3 }}>
+            Немає даних для порівняння
+          </Typography>
+        ) : (
+          <>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={momData.rows} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis tickFormatter={v => (v / 1000).toFixed(0) + 'k'} />
+                <Tooltip formatter={v => v != null ? `${fmtNum(v)} кВт·год` : '—'} />
+                <Legend />
+                <Bar dataKey={momData.lbl1} fill="#1976d2" radius={[3, 3, 0, 0]} />
+                <Bar dataKey={momData.lbl2} fill="#e65100" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+
+            {/* Дельта по кожному споживачу */}
+            {momData.r1 && momData.r2 && (
+              <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+                {[
+                  { label: 'Млин',     v1: momData.r1.mlyn_total,   v2: momData.r2.mlyn_total   },
+                  { label: 'Пелетний', v1: momData.r1.palet_kwh,    v2: momData.r2.palet_kwh    },
+                  { label: 'Елеватор', v1: momData.r1.elevator_kwh, v2: momData.r2.elevator_kwh },
+                  { label: 'Всього',   v1: momData.r1.total_kwh,    v2: momData.r2.total_kwh    },
+                ].map(({ label, v1, v2 }) => {
+                  const delta = v1 > 0 ? ((v2 - v1) / v1 * 100) : null
+                  const up = delta > 0
+                  return (
+                    <Box key={label} sx={{ minWidth: 90 }}>
+                      <Typography variant="caption" color="text.secondary">{label}</Typography>
+                      <Typography variant="body2" fontWeight={600}
+                        color={label === 'Всього' ? 'text.primary' : 'text.secondary'}>
+                        {fmtNum(Math.round(v2))} кВт·год
+                      </Typography>
+                      {delta != null && (
+                        <Typography variant="caption"
+                          color={up ? 'error.main' : 'success.main'} fontWeight={600}>
+                          {up ? '▲' : '▼'} {Math.abs(delta).toFixed(1)}%
+                        </Typography>
+                      )}
+                    </Box>
+                  )
+                })}
+              </Box>
+            )}
+          </>
+        )}
       </Paper>
 
       {/* 4. Порівняння рік до року */}
