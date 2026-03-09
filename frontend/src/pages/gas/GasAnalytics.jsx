@@ -48,10 +48,8 @@ export default function GasAnalytics({ records }) {
       .filter(r => !yearFilter || r.month.startsWith(yearFilter))
       .sort((a, b) => a.month.localeCompare(b.month))
       .map(r => ({
-        name:        shortLabel(r.month),
-        'Споживання': r.consumption != null ? Math.round(r.consumption) : null,
-        'ВТВ':        r.vtv         != null ? parseFloat(r.vtv.toFixed(2)) : null,
-        'Всього':     r.total       != null ? Math.round(r.total) : null,
+        name:      shortLabel(r.month),
+        'Загальне': r.total != null ? Math.round(r.total) : (r.consumption != null ? Math.round(r.consumption) : null),
       })),
     [records, yearFilter]
   )
@@ -90,10 +88,9 @@ export default function GasAnalytics({ records }) {
     if (!r1 && !r2) return { rows: [], lbl1: '', lbl2: '', r1: null, r2: null }
     const lbl1 = cmpMonth1 ? monthLabel(cmpMonth1) : '—'
     const lbl2 = cmpMonth2 ? monthLabel(cmpMonth2) : '—'
+    const val = (r) => r?.total != null ? Math.round(r.total) : (r?.consumption != null ? Math.round(r.consumption) : null)
     const rows = [
-      { name: 'Споживання', [lbl1]: r1?.consumption != null ? Math.round(r1.consumption) : null, [lbl2]: r2?.consumption != null ? Math.round(r2.consumption) : null },
-      { name: 'ВТВ',        [lbl1]: r1?.vtv         != null ? r1.vtv         : null,              [lbl2]: r2?.vtv != null ? r2.vtv : null },
-      { name: 'Всього',     [lbl1]: r1?.total        != null ? Math.round(r1.total) : null,        [lbl2]: r2?.total != null ? Math.round(r2.total) : null },
+      { name: 'Загальне', [lbl1]: val(r1), [lbl2]: val(r2) },
     ]
     return { rows, lbl1, lbl2, r1, r2 }
   }, [records, cmpMonth1, cmpMonth2])
@@ -107,8 +104,8 @@ export default function GasAnalytics({ records }) {
       if (!r1 && !r2) return null
       return {
         name: mo,
-        [compareYear1]: r1?.consumption != null ? Math.round(r1.consumption) : null,
-        [compareYear2]: r2?.consumption != null ? Math.round(r2.consumption) : null,
+        [compareYear1]: r1 ? Math.round(r1.total ?? r1.consumption ?? 0) : null,
+        [compareYear2]: r2 ? Math.round(r2.total ?? r2.consumption ?? 0) : null,
       }
     }).filter(Boolean),
     [records, compareYear1, compareYear2]
@@ -184,8 +181,7 @@ export default function GasAnalytics({ records }) {
             <YAxis tickFormatter={v => v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v} />
             <Tooltip formatter={(v, name) => v != null ? [`${fmtNum(v)} м³`, name] : ['—', name]} />
             <Legend />
-            <Bar dataKey="Споживання" fill="#1565c0" radius={[3, 3, 0, 0]} />
-            {hasVtv && <Bar dataKey="ВТВ" fill="#e65100" radius={[3, 3, 0, 0]} />}
+            <Bar dataKey="Загальне" fill="#1565c0" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </Paper>
@@ -271,8 +267,7 @@ export default function GasAnalytics({ records }) {
               <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                 {[
                   { label: 'Споживання', v1: momData.r1.consumption, v2: momData.r2.consumption },
-                  { label: 'ВТВ',        v1: momData.r1.vtv,         v2: momData.r2.vtv         },
-                  { label: 'Всього',     v1: momData.r1.total,       v2: momData.r2.total       },
+                  { label: 'Загальне',   v1: momData.r1.total ?? momData.r1.consumption, v2: momData.r2.total ?? momData.r2.consumption },
                 ].map(({ label, v1, v2 }) => {
                   const delta = v1 > 0 && v2 != null ? ((v2 - v1) / v1 * 100) : null
                   const up    = delta > 0
