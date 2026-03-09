@@ -30,6 +30,7 @@ import {
   FactCheck as InventoryCountIcon,
   TrendingUp as AnalyticsIcon,
   ElectricBolt as ElectricityIcon,
+  ManageSearch as AuditIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../../context/AuthContext'
 
@@ -55,6 +56,7 @@ const dictionaryMenuItems = [
 
 const adminMenuItems = [
   { text: 'Користувачі', icon: <UsersIcon />, path: '/users' },
+  { text: 'Журнал змін', icon: <AuditIcon />, path: '/audit' },
 ]
 
 const PING_INTERVAL_MS = 10 * 60 * 1000 // 10 хвилин

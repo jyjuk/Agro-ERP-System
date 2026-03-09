@@ -11,6 +11,7 @@ from app.models.inventory import Inventory, InventoryTransaction
 from app.models.user import User, Role
 from app.models.department import Department
 from app.models.product import Product
+from app.services.audit import write_audit
 
 router = APIRouter()
 
@@ -246,6 +247,8 @@ def confirm_writeoff(
     writeoff.status = "confirmed"
     writeoff.total_cost = total_cost
 
+    write_audit(db, current_user.id, "writeoff_confirm", "writeoff", entity_id=writeoff.id,
+                changes={"status": {"old": "draft", "new": "confirmed"}})
     db.commit()
     db.refresh(writeoff)
 

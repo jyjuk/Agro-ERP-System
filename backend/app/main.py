@@ -87,7 +87,7 @@ def health_check():
 
 
 # Include API routers
-from app.api.v1 import auth, suppliers, products, purchases, inventory, transfers, reports, departments, writeoffs, users, notifications, transport, inventory_counts, electricity
+from app.api.v1 import auth, suppliers, products, purchases, inventory, transfers, reports, departments, writeoffs, users, notifications, transport, inventory_counts, electricity, audit
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
@@ -103,6 +103,7 @@ app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["
 app.include_router(transport.router, prefix="/api/v1/transport", tags=["Transport"])
 app.include_router(inventory_counts.router, prefix="/api/v1/inventory-counts", tags=["Inventory Counts"])
 app.include_router(electricity.router, prefix="/api/v1/electricity", tags=["Electricity"])
+app.include_router(audit.router, prefix="/api/v1/audit", tags=["Audit"])
 
 # TODO: Add more routers
 # from app.api.v1 import products, purchases, inventory, transfers, reports

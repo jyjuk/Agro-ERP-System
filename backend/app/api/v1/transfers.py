@@ -11,6 +11,7 @@ from app.models.inventory import Inventory, InventoryTransaction
 from app.models.user import User
 from app.models.department import Department
 from app.models.product import Product
+from app.services.audit import write_audit
 
 router = APIRouter()
 
@@ -267,6 +268,8 @@ def confirm_transfer(
     transfer.status = "confirmed"
     transfer.total_cost = total_cost
 
+    write_audit(db, current_user.id, "transfer_confirm", "transfer", entity_id=transfer.id,
+                changes={"status": {"old": "draft", "new": "confirmed"}})
     db.commit()
     db.refresh(transfer)
     return transfer

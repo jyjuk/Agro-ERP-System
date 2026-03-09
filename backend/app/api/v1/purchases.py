@@ -11,6 +11,7 @@ from app.models.user import User
 from app.models.supplier import Supplier
 from app.models.department import Department
 from app.models.product import Product
+from app.services.audit import write_audit
 
 router = APIRouter()
 
@@ -208,6 +209,8 @@ def confirm_purchase(
     # Змінити статус
     purchase.status = "confirmed"
 
+    write_audit(db, current_user.id, "purchase_confirm", "purchase", entity_id=purchase.id,
+                changes={"status": {"old": "draft", "new": "confirmed"}})
     db.commit()
     db.refresh(purchase)
     return purchase

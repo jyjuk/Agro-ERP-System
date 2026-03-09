@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -6,6 +6,7 @@ from app.api.deps import get_db, get_current_user
 from app.schemas.auth import Token, UserResponse
 from app.core.security import verify_password, create_access_token, create_refresh_token, decode_token
 from app.models.user import User
+from app.services.audit import write_audit
 
 router = APIRouter()
 
@@ -16,6 +17,7 @@ class RefreshRequest(BaseModel):
 
 @router.post("/login", response_model=Token)
 def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
@@ -48,6 +50,9 @@ def login(
     # Create tokens
     access_token = create_access_token(data={"sub": user.username})
     refresh_token = create_refresh_token(data={"sub": user.username})
+
+    write_audit(db, user.id, "login", "auth", ip_address=request.client.host if request.client else None)
+    db.commit()
 
     return {
         "access_token": access_token,
@@ -85,6 +90,8 @@ def get_current_user_info(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/logout")
-def logout(current_user: User = Depends(get_current_user)):
+def logout(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Logout (client should delete tokens)"""
+    write_audit(db, current_user.id, "logout", "auth")
+    db.commit()
     return {"message": "Successfully logged out"}

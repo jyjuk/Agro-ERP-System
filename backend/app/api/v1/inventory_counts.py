@@ -12,6 +12,7 @@ from app.models.inventory import Inventory, InventoryTransaction
 from app.models.department import Department
 from app.models.product import Product, Unit
 from app.models.user import User
+from app.services.audit import write_audit
 
 router = APIRouter()
 
@@ -270,6 +271,8 @@ def approve_inventory_count(
 
     count.status = "approved"
     count.approved_by = current_user.id
+    write_audit(db, current_user.id, "inventory_approve", "inventory_count", entity_id=count.id,
+                changes={"status": {"old": "draft", "new": "approved"}, "adjusted_items": adjusted})
     db.commit()
 
     return {"message": f"Інвентаризацію підтверджено. Скориговано позицій: {adjusted}"}
