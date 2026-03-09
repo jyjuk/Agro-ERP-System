@@ -266,8 +266,7 @@ export default function GasAnalytics({ records }) {
             {momData.r1 && momData.r2 && (
               <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                 {[
-                  { label: 'Споживання', v1: momData.r1.consumption, v2: momData.r2.consumption },
-                  { label: 'Загальне',   v1: momData.r1.total ?? momData.r1.consumption, v2: momData.r2.total ?? momData.r2.consumption },
+                  { label: 'Загальне', v1: momData.r1.total ?? momData.r1.consumption, v2: momData.r2.total ?? momData.r2.consumption },
                 ].map(({ label, v1, v2 }) => {
                   const delta = v1 > 0 && v2 != null ? ((v2 - v1) / v1 * 100) : null
                   const up    = delta > 0
