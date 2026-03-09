@@ -31,6 +31,7 @@ import {
   TrendingUp as AnalyticsIcon,
   ElectricBolt as ElectricityIcon,
   ManageSearch as AuditIcon,
+  LocalFireDepartment as GasIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../../context/AuthContext'
 
@@ -46,6 +47,7 @@ const allMenuItems = [
   { text: 'Звіти',       icon: <ReportIcon />,    path: '/reports',    roles: ['admin', 'manager', 'warehouse_manager', 'accountant'] },
   { text: 'Аналітика',    icon: <AnalyticsIcon />,    path: '/analytics',   roles: ['admin', 'manager', 'accountant'] },
   { text: 'Електроенергія', icon: <ElectricityIcon />, path: '/electricity', roles: ['admin', 'manager', 'accountant'] },
+  { text: 'Газ',           icon: <GasIcon />,         path: '/gas',         roles: ['admin', 'manager', 'accountant'] },
 ]
 
 const dictionaryMenuItems = [

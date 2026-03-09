@@ -5,7 +5,7 @@ from app.config import settings
 from app.database import engine, Base
 
 # Import all models to register them with Base
-from app.models import user, supplier, product, purchase, inventory, transfer, writeoff, department, audit, transport, electricity
+from app.models import user, supplier, product, purchase, inventory, transfer, writeoff, department, audit, transport, electricity, gas
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -87,7 +87,7 @@ def health_check():
 
 
 # Include API routers
-from app.api.v1 import auth, suppliers, products, purchases, inventory, transfers, reports, departments, writeoffs, users, notifications, transport, inventory_counts, electricity, audit
+from app.api.v1 import auth, suppliers, products, purchases, inventory, transfers, reports, departments, writeoffs, users, notifications, transport, inventory_counts, electricity, audit, gas
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
@@ -104,6 +104,7 @@ app.include_router(transport.router, prefix="/api/v1/transport", tags=["Transpor
 app.include_router(inventory_counts.router, prefix="/api/v1/inventory-counts", tags=["Inventory Counts"])
 app.include_router(electricity.router, prefix="/api/v1/electricity", tags=["Electricity"])
 app.include_router(audit.router, prefix="/api/v1/audit", tags=["Audit"])
+app.include_router(gas.router,   prefix="/api/v1/gas",   tags=["Gas"])
 
 # TODO: Add more routers
 # from app.api.v1 import products, purchases, inventory, transfers, reports
