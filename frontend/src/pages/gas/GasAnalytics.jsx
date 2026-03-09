@@ -110,6 +110,15 @@ export default function GasAnalytics({ records }) {
   }, [records, cmpMonth1, cmpMonth2])
 
   // 4. YoY
+  const yoyTotals = useMemo(() => {
+    const sum = (year) => {
+      const rows = records.filter(r => r.month.startsWith(year))
+      if (!rows.length) return null
+      return rows.reduce((s, r) => s + (r.total ?? r.consumption ?? 0), 0)
+    }
+    return { y1: sum(compareYear1), y2: sum(compareYear2) }
+  }, [records, compareYear1, compareYear2])
+
   const yoyData = useMemo(() =>
     MONTHS_UK.map((mo, i) => {
       const moStr = String(i + 1).padStart(2, '0')
@@ -322,17 +331,40 @@ export default function GasAnalytics({ records }) {
         {yoyData.length === 0 ? (
           <Typography color="text.secondary" align="center" sx={{ py: 3 }}>Немає даних</Typography>
         ) : (
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={yoyData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis tickFormatter={v => v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v} />
-              <Tooltip formatter={(v, name) => v != null ? [`${fmtNum(v)} м³`, name] : ['—', name]} />
-              <Legend />
-              <Bar dataKey={compareYear1} fill="#1565c0" radius={[3, 3, 0, 0]} />
-              <Bar dataKey={compareYear2} fill="#43a047" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={yoyData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis tickFormatter={v => v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v} />
+                <Tooltip formatter={(v, name) => v != null ? [`${fmtNum(v)} м³`, name] : ['—', name]} />
+                <Legend />
+                <Bar dataKey={compareYear1} fill="#1565c0" radius={[3, 3, 0, 0]} />
+                <Bar dataKey={compareYear2} fill="#43a047" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+            {yoyTotals.y1 != null && yoyTotals.y2 != null && (
+              <Box sx={{ display: 'flex', gap: 4, mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">{compareYear1} — всього</Typography>
+                  <Typography variant="body2" fontWeight={600}>{fmtInt(yoyTotals.y1)} м³</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">{compareYear2} — всього</Typography>
+                  <Typography variant="body2" fontWeight={600}>{fmtInt(yoyTotals.y2)} м³</Typography>
+                  {yoyTotals.y1 > 0 && (() => {
+                    const delta = (yoyTotals.y2 - yoyTotals.y1) / yoyTotals.y1 * 100
+                    const up = delta > 0
+                    return (
+                      <Typography variant="caption" color={up ? 'error.main' : 'success.main'} fontWeight={600}>
+                        {up ? '▲' : '▼'} {Math.abs(delta).toFixed(1)}%
+                      </Typography>
+                    )
+                  })()}
+                </Box>
+              </Box>
+            )}
+          </>
         )}
       </Paper>
 

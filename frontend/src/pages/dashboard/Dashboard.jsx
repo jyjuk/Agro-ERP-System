@@ -144,8 +144,7 @@ const Dashboard = () => {
             const [y, mo] = r.month.split('-')
             return {
               name: `${MONTHS_UK[parseInt(mo) - 1]}'${y.slice(2)}`,
-              'Споживання': r.consumption != null ? Math.round(r.consumption) : null,
-              ...(r.vtv != null ? { 'ВТВ': parseFloat(Number(r.vtv).toFixed(2)) } : {}),
+              'Загальне': r.total != null ? Math.round(r.total) : (r.consumption != null ? Math.round(r.consumption) : null),
             }
           })
         setGasData(last6)
@@ -361,10 +360,7 @@ const Dashboard = () => {
                     <YAxis tickFormatter={v => v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v} tick={{ fontSize: 12 }} width={40} />
                     <Tooltip formatter={(v, name) => v != null ? [`${Number(v).toLocaleString('uk-UA')} м³`, name] : ['—', name]} />
                     <Legend />
-                    <Bar dataKey="Споживання" fill="#1565c0" radius={[3, 3, 0, 0]} />
-                    {gasData.some(d => d['ВТВ'] != null) && (
-                      <Bar dataKey="ВТВ" fill="#e65100" radius={[3, 3, 0, 0]} />
-                    )}
+                    <Bar dataKey="Загальне" fill="#1565c0" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </Paper>
