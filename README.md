@@ -1,6 +1,6 @@
 # Agro ERP — Система обліку для агробізнесу
 
-Система обліку витратних матеріалів та запчастин. Версія **0.9.0**.
+Система обліку витратних матеріалів та запчастин. Версія **0.9.1**.
 
 **Стек:** Python 3.12 + FastAPI · React 18 + MUI · SQLite (локально) / PostgreSQL (production)
 **Деплой:** Render (backend) · Vercel (frontend) · Neon.tech (PostgreSQL)
@@ -30,6 +30,7 @@
 | Searchable Autocomplete у всіх діалогах | ✅ |
 | Електроенергія (облік по місяцях + аналітика + дизельний генератор) | ✅ |
 | Звіт списань по підрозділах (новий таб "Списання" у звітах) | ✅ |
+| Audit Trail UI — журнал дій (login, підтвердження, IP) | ✅ |
 
 **Підрозділи (13):** Основний склад, Склад готової продукції, Млин, Елеватор,
 Цех паливної гранули, Адміністрація, Вагова, Охорона, Лабораторія,
@@ -91,7 +92,7 @@ elev/
 │   │   ├── api/v1/          # 16 роутерів (auth, products, purchases, reports, electricity, ...)
 │   │   ├── models/          # 15 SQLAlchemy моделей
 │   │   ├── schemas/         # Pydantic схеми (включно з аналітикою)
-│   │   ├── services/        # Telegram notifications + APScheduler
+│   │   ├── services/        # Telegram notifications + APScheduler + audit helper
 │   │   └── core/            # JWT, bcrypt
 │   ├── scripts/             # seed_data.py, міграції
 │   ├── render.yaml          # Render.com конфіг
@@ -128,7 +129,7 @@ elev/
 | `notifications.py` | Telegram endpoints + manual low-stock trigger |
 | `transport.py` | CRUD транспорту + auto-department |
 | `electricity.py` | GET /{month}, POST /save (admin), GET / (список місяців) |
-| `audit.py` | AuditLog (модель) |
+| `audit.py` | GET / (фільтри), GET /meta — тільки admin |
 
 ### Frontend — сторінки
 
@@ -146,6 +147,7 @@ elev/
 | Аналітика | `/analytics` |
 | Транспорт | `/transport` |
 | Електроенергія | `/electricity` |
+| Журнал змін | `/audit` |
 | Користувачі | `/users` |
 | Логін | `/login` |
 
@@ -227,9 +229,8 @@ pg_dump $DATABASE_URL > backup_$(date +%Y%m%d).sql
 
 | Пріоритет | Функція | Опис |
 |---|---|---|
-| 1 | Audit Trail UI | Сторінка "Журнал змін" — хто і коли підтвердив, змінив; `GET /api/v1/audit/` |
-| 2 | Імпорт з Excel | Масовий імпорт товарів і постачальників з .xlsx |
-| 3 | Telegram бот | ConversationHandler: Перемістити / Списати / Залишки з телефону |
+| 1 | Імпорт з Excel | Масовий імпорт товарів і постачальників з .xlsx |
+| 2 | Telegram бот | ConversationHandler: Перемістити / Списати / Залишки з телефону |
 
 ---
 

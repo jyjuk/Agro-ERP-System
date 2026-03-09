@@ -6,8 +6,8 @@
 **Тип**: Web-додаток (FastAPI + React)
 **База даних**: SQLite (локально) → PostgreSQL/Neon (production)
 **Розташування**: `C:\elev\`
-**Версія**: 0.9.0
-**Останнє оновлення**: 2026-03-06
+**Версія**: 0.9.1
+**Останнє оновлення**: 2026-03-09
 
 ### Стек технологій
 - **Backend**: Python 3.12.6, FastAPI 0.109, SQLAlchemy 2.0, Pydantic 2.10.6
@@ -87,7 +87,8 @@ app/
 │   └── electricity.py         — GET /{month}, POST /save (admin only), GET /
 ├── services/
 │   ├── notifications.py       — Telegram через httpx (chunking 4000 chars)
-│   └── scheduler.py           — APScheduler: job_weekly_reminder (пн 9:00) + job_friday_check
+│   ├── scheduler.py           — APScheduler: job_weekly_reminder (пн 9:00) + job_friday_check
+│   └── audit.py               — write_audit() хелпер (без commit)
 └── api/deps.py                — 5 permission guards
 
 scripts/
@@ -122,7 +123,8 @@ src/
 │   ├── notifications.js
 │   ├── inventory_counts.js
 │   ├── transport.js
-│   └── electricity.js         — getMonth, save, listMonths
+│   ├── electricity.js         — getMonth, save, listMonths
+│   └── audit.js               — getLog(params), getMeta()
 ├── pages/
 │   ├── auth/Login.jsx
 │   ├── dashboard/Dashboard.jsx
@@ -136,9 +138,11 @@ src/
 │   ├── reports/ReportsPage.jsx
 │   ├── users/UsersList.jsx
 │   ├── transport/TransportPage.jsx
-│   └── electricity/
-│       ├── ElectricityPage.jsx    — введення даних (admin) + вкладки
-│       └── ElectricityAnalytics.jsx — 4 блоки аналітики (BarChart, Pie, таблиця, YoY)
+│   ├── electricity/
+│   │   ├── ElectricityPage.jsx    — введення даних (admin) + вкладки
+│   │   └── ElectricityAnalytics.jsx — 5 блоків (BarChart, Pie, таблиця, MoM, YoY)
+│   └── audit/
+│       └── AuditPage.jsx          — журнал дій (тільки admin)
 └── components/
     ├── layout/MainLayout.jsx
     ├── suppliers/SupplierDialog.jsx
@@ -310,6 +314,9 @@ VITE_API_URL
 | Підрозділи (13 шт.) | ✅ |
 | Звіт списань по підрозділах (таб "Списання") | ✅ |
 | Електроенергія (облік + аналітика + генератор) | ✅ |
+| Audit Trail UI (журнал дій, фільтри, IP) | ✅ |
+| Dashboard — графік електроенергії (останні 6 місяців) | ✅ |
+| Електроенергія — MoM порівняння з дельтою % | ✅ |
 
 ### 🚀 Запуск локально
 
@@ -446,6 +453,33 @@ npm start
 
 ---
 
+---
+
+### Сесія 18: Audit Trail + Dashboard electricity + MoM (2026-03-09)
+
+#### 41. Audit Trail UI
+- ✅ `backend/app/services/audit.py` — `write_audit(db, user_id, action, entity_type, entity_id, changes)` без commit
+- ✅ `backend/app/api/v1/audit.py` — GET /audit/ (фільтри: user_id, action, entity_type, date_from, date_to, skip, limit), GET /audit/meta
+- ✅ Логування в: auth (login з IP, logout), purchases (confirm), transfers (confirm), writeoffs (confirm), inventory_counts (approve)
+- ✅ `frontend/src/api/audit.js` — getLog, getMeta
+- ✅ `frontend/src/pages/audit/AuditPage.jsx` — таблиця (дата, user, дія-Chip, об'єкт+іконка, ID, деталі змін розкладні, IP), фільтри, пагінація server-side
+- ✅ Меню admin: "Журнал змін" (ManageSearch іконка), маршрут `/audit`
+
+#### 42. Dashboard — графік електроенергії
+- ✅ `Dashboard.jsx`: завантаження `electricityAPI.listMonths()` через Promise.allSettled
+- ✅ Стековий BarChart (Млин/Пелетний/Елеватор), останні 6 місяців, вісь Y в 'k'
+- ✅ Блок видимий тільки якщо є дані
+
+#### 43. ElectricityAnalytics — MoM порівняння
+- ✅ Блок між таблицею і YoY: два селектори місяців (дефолт — два останніх)
+- ✅ Grouped BarChart: для кожного споживача + Всього — два стовпці поряд
+- ✅ Дельта під графіком: значення + % зміни, ▲ червоний (більше) / ▼ зелений (менше)
+
+#### Fix: PieChart мітка "Млин" обрізалась
+- ✅ height 250→280, margin top:30, outerRadius 100→90
+
+---
+
 ### ★ НАСТУПНЕ ПОЧИНАТИ З ЦЬОГО
 
 #### ✅ BUG: "date: Input should be None" — ВИПРАВЛЕНО (commit `7b44b5f`)
@@ -502,21 +536,7 @@ npm start
 
 ---
 
-#### Пріоритет 1 — Audit Trail UI (хто що змінив, коли)
-**Що є вже зараз:**
-- ✅ Модель `AuditLog` в `backend/app/models/audit.py` — таблиця існує
-- ✅ Дані пишуться (перевірити чи пишуться при підтвердженнях)
-
-**Що потрібно зробити:**
-- [ ] Backend: `GET /api/v1/audit/` з фільтрами (user, action, date, entity)
-- [ ] Frontend: сторінка "Журнал змін" — таблиця з колонками: Дата/час | Користувач | Дія | Об'єкт | Деталі
-- [ ] Додати в меню (тільки admin)
-
-**Складність**: середня | **Цінність**: висока (хто і коли підтвердив списання, змінив дані)
-
----
-
-#### Пріоритет 2 — Імпорт з Excel
+#### Пріоритет 1 — Імпорт з Excel
 **Що потрібно:**
 - [ ] Backend: `POST /api/v1/products/import` — читає xlsx, створює товари пакетно
 - [ ] Backend: `POST /api/v1/suppliers/import` — те саме для постачальників
@@ -527,7 +547,7 @@ npm start
 
 ---
 
-#### Пріоритет 3 — Telegram бот з кнопками
+#### Пріоритет 2 — Telegram бот з кнопками
 **Що потрібно:**
 - [ ] `pip install python-telegram-bot>=20`
 - [ ] `backend/app/telegram_bot/` — bot.py, handlers.py, api_client.py, states.py
@@ -552,6 +572,6 @@ npm start
 
 ---
 
-**Останнє оновлення**: 2026-03-06 (сесія 15–17 — Scheduler, Write-off report, Electricity module)
-**Версія**: 0.9.0
+**Останнє оновлення**: 2026-03-09 (сесія 18 — Audit Trail UI, Dashboard electricity, MoM chart)
+**Версія**: 0.9.1
 **Статус**: ✅ Production Live | CI/CD ✅ | Моніторинг ✅
