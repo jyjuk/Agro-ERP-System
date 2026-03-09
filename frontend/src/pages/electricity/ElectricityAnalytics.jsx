@@ -219,9 +219,9 @@ export default function ElectricityAnalytics({ records }) {
         </Box>
         <Grid container alignItems="center">
           <Grid item xs={12} md={5}>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" outerRadius={100}
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart margin={{ top: 30, right: 30, bottom: 10, left: 30 }}>
+                <Pie data={pieData} cx="50%" cy="50%" outerRadius={90}
                   dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                 >
                   {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
