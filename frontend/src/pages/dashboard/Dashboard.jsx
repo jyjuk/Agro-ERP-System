@@ -26,6 +26,7 @@ import {
   Business as BusinessIcon,
   Telegram as TelegramIcon,
   SwapHoriz as TransferIcon,
+  ElectricBolt as ElectricBoltIcon,
 } from '@mui/icons-material'
 import {
   LineChart,
@@ -45,6 +46,7 @@ import { inventoryAPI } from '../../api/inventory'
 import { notificationsAPI } from '../../api/notifications'
 import { purchasesAPI } from '../../api/purchases'
 import { transfersAPI } from '../../api/transfers'
+import { electricityAPI } from '../../api/electricity'
 
 const TRANSACTION_TYPE_UK = {
   receipt: 'Прихід',
@@ -70,6 +72,7 @@ const Dashboard = () => {
   const [lowStockItems, setLowStockItems] = useState([])
   const [recentPurchases, setRecentPurchases] = useState([])
   const [recentTransfers, setRecentTransfers] = useState([])
+  const [electricityData, setElectricityData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [notifLoading, setNotifLoading] = useState(false)
@@ -96,19 +99,39 @@ const Dashboard = () => {
     }
   }
 
+  const MONTHS_UK = ['Січ','Лют','Бер','Кві','Тра','Чер','Лип','Сер','Вер','Жов','Лис','Гру']
+
   const loadDashboard = async () => {
     try {
       setLoading(true)
-      const [dashboardData, lowStock, purchases, transfers] = await Promise.all([
+      const [dashboardData, lowStock, purchases, transfers, elecResult] = await Promise.allSettled([
         reportsAPI.getDashboard(),
         inventoryAPI.getLowStock(),
         purchasesAPI.list({ limit: 5 }),
         transfersAPI.list({ limit: 5 }),
+        electricityAPI.listMonths(),
       ])
-      setData(dashboardData)
-      setLowStockItems(lowStock)
-      setRecentPurchases(purchases.slice(0, 5))
-      setRecentTransfers(transfers.slice(0, 5))
+      if (dashboardData.status === 'fulfilled') setData(dashboardData.value)
+      else throw new Error(dashboardData.reason?.message || 'Failed to load dashboard')
+      if (lowStock.status === 'fulfilled') setLowStockItems(lowStock.value)
+      if (purchases.status === 'fulfilled') setRecentPurchases(purchases.value.slice(0, 5))
+      if (transfers.status === 'fulfilled') setRecentTransfers(transfers.value.slice(0, 5))
+      if (elecResult.status === 'fulfilled') {
+        const last6 = [...elecResult.value]
+          .sort((a, b) => a.month.localeCompare(b.month))
+          .slice(-6)
+          .map(r => {
+            const [y, mo] = r.month.split('-')
+            return {
+              name: `${MONTHS_UK[parseInt(mo) - 1]}'${y.slice(2)}`,
+              'Млин': Math.round(r.mlyn_total),
+              'Пелетний': Math.round(r.palet_kwh),
+              'Елеватор': Math.round(r.elevator_kwh),
+              _total: Math.round(r.total_kwh),
+            }
+          })
+        setElectricityData(last6)
+      }
     } catch (err) {
       setError(err.message || 'Failed to load dashboard')
     } finally {
@@ -278,6 +301,33 @@ const Dashboard = () => {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Electricity chart */}
+      {electricityData.length > 0 && (
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Box display="flex" alignItems="center" gap={1} mb={1}>
+            <ElectricBoltIcon color="warning" fontSize="small" />
+            <Typography variant="h6">Електроенергія — останні місяці</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+              кВт·год
+            </Typography>
+          </Box>
+          <ResponsiveContainer width="99%" height={220}>
+            <BarChart data={electricityData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+              <YAxis tickFormatter={v => (v / 1000).toFixed(0) + 'k'} tick={{ fontSize: 12 }} width={40} />
+              <Tooltip
+                formatter={(v, name) => [`${Number(v).toLocaleString('uk-UA')} кВт·год`, name]}
+              />
+              <Legend />
+              <Bar dataKey="Млин" stackId="a" fill="#1976d2" />
+              <Bar dataKey="Пелетний" stackId="a" fill="#e65100" />
+              <Bar dataKey="Елеватор" stackId="a" fill="#2e7d32" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Paper>
+      )}
 
       {/* Tables row */}
       <Grid container spacing={2} sx={{ mb: 2 }}>
