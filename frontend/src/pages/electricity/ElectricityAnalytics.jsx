@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Box, Typography, Paper, Grid, TextField, Divider,
   Table, TableHead, TableRow, TableCell, TableBody, TableContainer,
@@ -52,17 +52,32 @@ export default function ElectricityAnalytics({ records }) {
     return [...s].sort().reverse()
   }, [records])
 
-  const [yearFilter, setYearFilter] = useState(years[0] || '')
-  const [compareYear1, setCompareYear1] = useState(years[0] || '')
-  const [compareYear2, setCompareYear2] = useState(years[1] || years[0] || '')
-  const [pieMonth, setPieMonth] = useState(records[0]?.month || '')
+  const [yearFilter, setYearFilter] = useState('')
+  const [compareYear1, setCompareYear1] = useState('')
+  const [compareYear2, setCompareYear2] = useState('')
+  const [pieMonth, setPieMonth] = useState('')
 
   const sortedMonths = useMemo(() =>
     [...records].sort((a, b) => b.month.localeCompare(a.month)),
     [records]
   )
-  const [cmpMonth1, setCmpMonth1] = useState(sortedMonths[1]?.month || sortedMonths[0]?.month || '')
-  const [cmpMonth2, setCmpMonth2] = useState(sortedMonths[0]?.month || '')
+  const [cmpMonth1, setCmpMonth1] = useState('')
+  const [cmpMonth2, setCmpMonth2] = useState('')
+
+  // Ініціалізація стейту після завантаження даних
+  useEffect(() => {
+    if (!years.length) return
+    setYearFilter(prev => prev || years[0])
+    setCompareYear1(prev => prev || years[0])
+    setCompareYear2(prev => prev || years[1] || years[0])
+  }, [years])
+
+  useEffect(() => {
+    if (!sortedMonths.length) return
+    setPieMonth(prev => prev || sortedMonths[0]?.month || '')
+    setCmpMonth2(prev => prev || sortedMonths[0]?.month || '')
+    setCmpMonth1(prev => prev || sortedMonths[1]?.month || sortedMonths[0]?.month || '')
+  }, [sortedMonths])
 
   // Чи є хоч один місяць з генератором
   const hasGenerator = useMemo(() => records.some(r => r.gen_kwh > 0), [records])
