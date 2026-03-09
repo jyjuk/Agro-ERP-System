@@ -6,8 +6,8 @@
 **Тип**: Web-додаток (FastAPI + React)
 **База даних**: SQLite (локально) → PostgreSQL/Neon (production)
 **Розташування**: `C:\elev\`
-**Версія**: 0.7.4
-**Останнє оновлення**: 2026-03-04
+**Версія**: 0.9.0
+**Останнє оновлення**: 2026-03-06
 
 ### Стек технологій
 - **Backend**: Python 3.12.6, FastAPI 0.109, SQLAlchemy 2.0, Pydantic 2.10.6
@@ -49,7 +49,7 @@
 ### Backend (`C:\elev\backend\`)
 ```
 app/
-├── main.py                    — FastAPI app, CORS, роутери (13 роутерів)
+├── main.py                    — FastAPI app, CORS, роутери (16 роутерів), lifespan (scheduler)
 ├── database.py                — SQLAlchemy, auto-switch SQLite↔PostgreSQL
 ├── config.py                  — Settings з pydantic-settings, читає .env
 ├── models/
@@ -63,7 +63,8 @@ app/
 │   ├── writeoff.py            — WriteOff, WriteOffItem
 │   ├── inventory_count.py     — InventoryCount, InventoryCountItem
 │   ├── audit.py               — AuditLog
-│   └── transport.py           — TransportUnit
+│   ├── transport.py           — TransportUnit
+│   └── electricity.py         — ElectricityRecord (місячний облік ел-ії)
 ├── schemas/
 │   ├── auth.py, supplier.py, product.py
 │   ├── purchase.py, inventory.py, transfer.py
@@ -80,11 +81,13 @@ app/
 │   ├── writeoffs.py           — CRUD списань + підтвердження
 │   ├── inventory.py           — залишки + low-stock
 │   ├── inventory_counts.py    — CRUD інвентаризацій + підтвердження
-│   ├── reports.py             — 5 типів звітів + dashboard
-│   ├── notifications.py       — Telegram endpoints
-│   └── transport.py           — CRUD транспорту
+│   ├── reports.py             — 5 типів звітів + dashboard + writeoffs endpoint
+│   ├── notifications.py       — Telegram endpoints + POST /send-stock-report
+│   ├── transport.py           — CRUD транспорту
+│   └── electricity.py         — GET /{month}, POST /save (admin only), GET /
 ├── services/
-│   └── notifications.py       — Telegram через httpx
+│   ├── notifications.py       — Telegram через httpx (chunking 4000 chars)
+│   └── scheduler.py           — APScheduler: job_weekly_reminder (пн 9:00) + job_friday_check
 └── api/deps.py                — 5 permission guards
 
 scripts/
@@ -104,7 +107,7 @@ runtime.txt                    — Python 3.12.6
 src/
 ├── App.jsx
 ├── routes/
-│   ├── AppRoutes.jsx          — 11 маршрутів
+│   ├── AppRoutes.jsx          — 13 маршрутів
 │   └── PrivateRoute.jsx
 ├── context/
 │   └── AuthContext.jsx        — 5 хелперів ролей, refresh token
@@ -118,7 +121,8 @@ src/
 │   ├── departments.js, reports.js, users.js
 │   ├── notifications.js
 │   ├── inventory_counts.js
-│   └── transport.js
+│   ├── transport.js
+│   └── electricity.js         — getMonth, save, listMonths
 ├── pages/
 │   ├── auth/Login.jsx
 │   ├── dashboard/Dashboard.jsx
@@ -131,7 +135,10 @@ src/
 │   ├── inventory_counts/InventoryCountsPage.jsx
 │   ├── reports/ReportsPage.jsx
 │   ├── users/UsersList.jsx
-│   └── transport/TransportPage.jsx
+│   ├── transport/TransportPage.jsx
+│   └── electricity/
+│       ├── ElectricityPage.jsx    — введення даних (admin) + вкладки
+│       └── ElectricityAnalytics.jsx — 4 блоки аналітики (BarChart, Pie, таблиця, YoY)
 └── components/
     ├── layout/MainLayout.jsx
     ├── suppliers/SupplierDialog.jsx
@@ -297,9 +304,12 @@ VITE_API_URL
 | Звіти (5 типів + Excel + PDF) | ✅ |
 | Dashboard (KPI + графіки + low-stock) | ✅ |
 | Telegram сповіщення | ✅ |
+| Telegram scheduler (понеділок 9:00 + остання п'ятниця) | ✅ |
 | Транспорт CRUD + облік запчастин по конкретному ТЗ | ✅ |
 | Пагінація всіх таблиць | ✅ |
 | Підрозділи (13 шт.) | ✅ |
+| Звіт списань по підрозділах (таб "Списання") | ✅ |
+| Електроенергія (облік + аналітика + генератор) | ✅ |
 
 ### 🚀 Запуск локально
 
@@ -357,9 +367,10 @@ npm start
 6. **CORS**: `ALLOWED_ORIGINS` розбивається по комі → підтримує кілька доменів
 
 ### БД — таблиці
-`users`, `roles`, `departments`, `suppliers`, `products`, `product_categories`, `units`, `purchases`, `purchase_items`, `inventory`, `inventory_transactions`, `transfers`, `transfer_items`, `writeoffs`, `writeoff_items`, `inventory_counts`, `inventory_count_items`, `audit_log`, `transport_units`
+`users`, `roles`, `departments`, `suppliers`, `products`, `product_categories`, `units`, `purchases`, `purchase_items`, `inventory`, `inventory_transactions`, `transfers`, `transfer_items`, `writeoffs`, `writeoff_items`, `inventory_counts`, `inventory_count_items`, `audit_log`, `transport_units`, `electricity_records`
 
 > `transport_units.department_id` → FK на `departments.id` (кожен ТЗ має свій підрозділ)
+> `electricity_records.gen_start/gen_end` — nullable (генератор не завжди працює); auto-migrated via `_run_schema_migrations()`
 
 ### Типові помилки
 1. **"Write-off not found"** → перевірити ID, можливо вже видалено
@@ -374,7 +385,68 @@ npm start
 
 ## Плани розвитку
 
-### ★ ЗАВТРА ПОЧИНАТИ З ЦЬОГО
+---
+
+### Сесія 15–17: Scheduler + Write-off report + Electricity module (2026-03-06)
+
+#### 38. APScheduler — Telegram автосповіщення
+- ✅ `backend/app/services/scheduler.py` — BackgroundScheduler, timezone=Europe/Kiev
+- ✅ `job_weekly_reminder` — щопонеділка 9:00, нагадування перевірити залишки
+- ✅ `job_friday_check` — остання п'ятниця місяця (last_friday logic), low-stock звіт
+- ✅ `build_low_stock_report(db)` — запит до inventory WHERE qty < min_stock_level
+- ✅ `backend/app/main.py` — lifespan context manager: start_scheduler() / stop_scheduler()
+- ✅ `backend/requirements.txt` — apscheduler==3.10.4
+- ✅ `backend/app/api/v1/notifications.py` — POST /send-stock-report (ручний тригер)
+- ✅ `backend/app/services/notifications.py` — chunking: split by lines, max 4000 chars/message
+- **Bug fix**: NameError `job_weekly_report` → перейменовано на `job_weekly_reminder` в start_scheduler()
+
+#### 39. Звіт Списань по підрозділах (новий таб у Reports)
+- ✅ `backend/app/schemas/report.py` — WriteoffMaterialRow, WriteoffDepartmentData, WriteoffReportResponse
+- ✅ `backend/app/api/v1/reports.py` — GET /writeoffs з фільтрами date_from/date_to/department_id
+- ✅ SQL GROUP BY: WriteOff JOIN Department JOIN WriteOffItem JOIN Product JOIN Category JOIN Unit
+- ✅ `frontend/src/api/reports.js` — getWriteoffReport(params)
+- ✅ `frontend/src/pages/reports/ReportsPage.jsx`:
+  - Таб 5 "Списання": таблиця підрозділів → матеріали → к-сть, сума
+  - Promise.all → Promise.allSettled (resilience коли один endpoint недоступний)
+  - Excel export для нового табу
+  - Виправлено мітки: "Отримано" → "Переміщено (вхід)", "Відправлено" → "Переміщено (вихід)"
+
+#### 40. Модуль Електроенергія — повний
+- ✅ `backend/app/models/electricity.py` — ElectricityRecord (місяць unique, 8 лічильників + генератор)
+- ✅ `backend/app/api/v1/electricity.py`:
+  - Коефіцієнти: MLYN_1=100, MLYN_2=1, PALETKA=1000
+  - _calc(): ktp_total, gen_kwh, total_kwh, mlyn1_kwh, mlyn2_kwh, mlyn_total, palet_kwh, elevator_kwh
+  - GET /{month} — завантажити місяць (all users)
+  - POST /save — зберегти/оновити (admin only, get_current_admin_user)
+  - GET / — список всіх місяців (all users)
+- ✅ `backend/app/main.py`:
+  - Importer electricity model
+  - electricity router registered
+  - _run_schema_migrations(): gen_start/gen_end columns (idempotent ALTER TABLE IF NOT EXISTS)
+- ✅ `frontend/src/api/electricity.js` — getMonth, save, listMonths
+- ✅ `frontend/src/pages/electricity/ElectricityPage.jsx`:
+  - 3 секції вводу: КТП, Млин (2 лічильники), Пелетний цех
+  - Генератор (опціональний, dashed border, warning кольори)
+  - `n(v) = parseFloat(String(v).replace(',', '.')) || 0` — підтримка коми як десяткового
+  - Авто-завантаження при зміні місяця (404 → очистити поля)
+  - Підсумок розподілу з % від загального
+  - Ролі: admin бачить 2 табки (введення + аналітика); інші — тільки аналітику
+- ✅ `frontend/src/pages/electricity/ElectricityAnalytics.jsx`:
+  - Блок 1: BarChart стек (Млин/Пелетний/Елеватор) по місяцях + фільтр року
+  - Блок 2: PieChart — 3 споживачі (генератор виключено, він ДЖЕРЕЛО а не споживач!)
+  - Блок 3: таблиця місяців (КТП, Генератор*, Всього, Млин, Пелетний, Елеватор) + Excel
+  - Блок 4: BarChart рік-до-року (total_kwh)
+  - CustomTooltip показує генератор як окреме джерело
+  - ⚡ на мітці X-осі для місяців де працював генератор
+- ✅ `frontend/src/components/layout/MainLayout.jsx` — пункт меню "Електроенергія"
+- ✅ `frontend/src/routes/AppRoutes.jsx` — route `/electricity`
+- **Bug fix**: генератор показувався як споживач у pie/bar → виправлено (він джерело!)
+
+**БД**: `electricity_records` (id, month unique, ktp_old, ktp_new, mlyn1_start/end, mlyn2_start/end, palet_start/end, gen_start nullable, gen_end nullable, created_by FK, timestamps)
+
+---
+
+### ★ НАСТУПНЕ ПОЧИНАТИ З ЦЬОГО
 
 #### ✅ BUG: "date: Input should be None" — ВИПРАВЛЕНО (commit `7b44b5f`)
 
@@ -430,7 +502,7 @@ npm start
 
 ---
 
-#### Пріоритет 2 — Audit Trail UI (хто що змінив, коли)
+#### Пріоритет 1 — Audit Trail UI (хто що змінив, коли)
 **Що є вже зараз:**
 - ✅ Модель `AuditLog` в `backend/app/models/audit.py` — таблиця існує
 - ✅ Дані пишуться (перевірити чи пишуться при підтвердженнях)
@@ -444,7 +516,7 @@ npm start
 
 ---
 
-#### Пріоритет 3 — Імпорт з Excel
+#### Пріоритет 2 — Імпорт з Excel
 **Що потрібно:**
 - [ ] Backend: `POST /api/v1/products/import` — читає xlsx, створює товари пакетно
 - [ ] Backend: `POST /api/v1/suppliers/import` — те саме для постачальників
@@ -455,7 +527,7 @@ npm start
 
 ---
 
-#### Пріоритет 5 — Telegram бот з кнопками
+#### Пріоритет 3 — Telegram бот з кнопками
 **Що потрібно:**
 - [ ] `pip install python-telegram-bot>=20`
 - [ ] `backend/app/telegram_bot/` — bot.py, handlers.py, api_client.py, states.py
@@ -480,6 +552,6 @@ npm start
 
 ---
 
-**Останнє оновлення**: 2026-03-04 (сесія 14 — Analytics, bugfixes: item duplication, chart Decimal)
-**Версія**: 0.8.1
+**Останнє оновлення**: 2026-03-06 (сесія 15–17 — Scheduler, Write-off report, Electricity module)
+**Версія**: 0.9.0
 **Статус**: ✅ Production Live | CI/CD ✅ | Моніторинг ✅

@@ -1,6 +1,6 @@
 # Agro ERP — Система обліку для агробізнесу
 
-Система обліку витратних матеріалів та запчастин. Версія **0.8.1**.
+Система обліку витратних матеріалів та запчастин. Версія **0.9.0**.
 
 **Стек:** Python 3.12 + FastAPI · React 18 + MUI · SQLite (локально) / PostgreSQL (production)
 **Деплой:** Render (backend) · Vercel (frontend) · Neon.tech (PostgreSQL)
@@ -24,10 +24,12 @@
 | Звіти × 5 типів + Excel export + PDF/Print | ✅ |
 | Dashboard (KPI-картки, графіки, low-stock, топ-5 постачальників) | ✅ |
 | Аналітика (динаміка цін, витрати по постачальниках, ABC-аналіз) | ✅ |
-| Telegram сповіщення | ✅ |
+| Telegram сповіщення + щотижневий scheduler (понеділок 9:00 + остання п'ятниця) | ✅ |
 | Транспорт (облік техніки + запчастини по кожному ТЗ) | ✅ |
 | Пагінація всіх таблиць | ✅ |
 | Searchable Autocomplete у всіх діалогах | ✅ |
+| Електроенергія (облік по місяцях + аналітика + дизельний генератор) | ✅ |
+| Звіт списань по підрозділах (новий таб "Списання" у звітах) | ✅ |
 
 **Підрозділи (13):** Основний склад, Склад готової продукції, Млин, Елеватор,
 Цех паливної гранули, Адміністрація, Вагова, Охорона, Лабораторія,
@@ -86,17 +88,17 @@ cp backend/.env.example backend/.env
 elev/
 ├── backend/
 │   ├── app/
-│   │   ├── api/v1/          # 14 роутерів (auth, products, purchases, reports, ...)
-│   │   ├── models/          # 14 SQLAlchemy моделей
+│   │   ├── api/v1/          # 16 роутерів (auth, products, purchases, reports, electricity, ...)
+│   │   ├── models/          # 15 SQLAlchemy моделей
 │   │   ├── schemas/         # Pydantic схеми (включно з аналітикою)
-│   │   ├── services/        # Telegram notifications
+│   │   ├── services/        # Telegram notifications + APScheduler
 │   │   └── core/            # JWT, bcrypt
 │   ├── scripts/             # seed_data.py, міграції
 │   ├── render.yaml          # Render.com конфіг
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/           # 13 сторінок
+│   │   ├── pages/           # 15 сторінок
 │   │   ├── components/      # Діалоги, layout
 │   │   ├── api/             # Axios клієнти
 │   │   ├── context/         # AuthContext
@@ -122,9 +124,10 @@ elev/
 | `writeoffs.py` | CRUD + approve |
 | `inventory.py` | залишки + low-stock |
 | `inventory_counts.py` | CRUD актів + approve + коригування |
-| `reports.py` | 5 типів звітів + dashboard + 3 аналітичних endpoint |
-| `notifications.py` | Telegram endpoints |
+| `reports.py` | 5 типів звітів + dashboard + 3 аналітичних endpoint + writeoffs |
+| `notifications.py` | Telegram endpoints + manual low-stock trigger |
 | `transport.py` | CRUD транспорту + auto-department |
+| `electricity.py` | GET /{month}, POST /save (admin), GET / (список місяців) |
 | `audit.py` | AuditLog (модель) |
 
 ### Frontend — сторінки
@@ -142,6 +145,7 @@ elev/
 | Звіти | `/reports` |
 | Аналітика | `/analytics` |
 | Транспорт | `/transport` |
+| Електроенергія | `/electricity` |
 | Користувачі | `/users` |
 | Логін | `/login` |
 
@@ -186,9 +190,11 @@ VITE_API_URL              # URL бекенду для фронтенду
 `users`, `roles`, `departments`, `suppliers`, `products`, `product_categories`, `units`,
 `purchases`, `purchase_items`, `inventory`, `inventory_transactions`,
 `transfers`, `transfer_items`, `writeoffs`, `writeoff_items`,
-`inventory_counts`, `inventory_count_items`, `audit_log`, `transport_units`
+`inventory_counts`, `inventory_count_items`, `audit_log`, `transport_units`,
+`electricity_records`
 
 > `transport_units.department_id` → FK на `departments.id` (кожен ТЗ має свій підрозділ)
+> `electricity_records.gen_start/gen_end` — nullable (генератор не завжди працює)
 
 ---
 
@@ -221,9 +227,9 @@ pg_dump $DATABASE_URL > backup_$(date +%Y%m%d).sql
 
 | Пріоритет | Функція | Опис |
 |---|---|---|
-| 2 | Audit Trail UI | Сторінка "Журнал змін" — хто і коли підтвердив, змінив; `GET /api/v1/audit/` |
-| 3 | Імпорт з Excel | Масовий імпорт товарів і постачальників з .xlsx |
-| 5 | Telegram бот | ConversationHandler: Перемістити / Списати / Залишки з телефону |
+| 1 | Audit Trail UI | Сторінка "Журнал змін" — хто і коли підтвердив, змінив; `GET /api/v1/audit/` |
+| 2 | Імпорт з Excel | Масовий імпорт товарів і постачальників з .xlsx |
+| 3 | Telegram бот | ConversationHandler: Перемістити / Списати / Залишки з телефону |
 
 ---
 
