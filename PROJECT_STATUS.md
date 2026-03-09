@@ -6,7 +6,7 @@
 **Тип**: Web-додаток (FastAPI + React)
 **База даних**: SQLite (локально) → PostgreSQL/Neon (production)
 **Розташування**: `C:\elev\`
-**Версія**: 0.9.1
+**Версія**: 0.9.2
 **Останнє оновлення**: 2026-03-09
 
 ### Стек технологій
@@ -64,7 +64,8 @@ app/
 │   ├── inventory_count.py     — InventoryCount, InventoryCountItem
 │   ├── audit.py               — AuditLog
 │   ├── transport.py           — TransportUnit
-│   └── electricity.py         — ElectricityRecord (місячний облік ел-ії)
+│   ├── electricity.py         — ElectricityRecord (місячний облік ел-ії)
+│   └── gas.py                 — GasRecord (consumption nullable, vtv nullable)
 ├── schemas/
 │   ├── auth.py, supplier.py, product.py
 │   ├── purchase.py, inventory.py, transfer.py
@@ -84,7 +85,8 @@ app/
 │   ├── reports.py             — 5 типів звітів + dashboard + writeoffs endpoint
 │   ├── notifications.py       — Telegram endpoints + POST /send-stock-report
 │   ├── transport.py           — CRUD транспорту
-│   └── electricity.py         — GET /{month}, POST /save (admin only), GET /
+│   ├── electricity.py         — GET /{month}, POST /save (admin only), GET /
+│   └── gas.py                 — GET /, GET /{month}, POST /save (admin), DELETE /{month}
 ├── services/
 │   ├── notifications.py       — Telegram через httpx (chunking 4000 chars)
 │   ├── scheduler.py           — APScheduler: job_weekly_reminder (пн 9:00) + job_friday_check
@@ -124,6 +126,7 @@ src/
 │   ├── inventory_counts.js
 │   ├── transport.js
 │   ├── electricity.js         — getMonth, save, listMonths
+│   ├── gas.js                 — listMonths, getMonth, save, deleteMonth
 │   └── audit.js               — getLog(params), getMeta()
 ├── pages/
 │   ├── auth/Login.jsx
@@ -141,6 +144,9 @@ src/
 │   ├── electricity/
 │   │   ├── ElectricityPage.jsx    — введення даних (admin) + вкладки
 │   │   └── ElectricityAnalytics.jsx — 5 блоків (BarChart, Pie, таблиця, MoM, YoY)
+│   ├── gas/
+│   │   ├── GasPage.jsx            — введення даних (admin) + вкладки
+│   │   └── GasAnalytics.jsx       — 5 блоків (BarChart, таблиця, MoM, YoY, Сезонність)
 │   └── audit/
 │       └── AuditPage.jsx          — журнал дій (тільки admin)
 └── components/
@@ -317,6 +323,7 @@ VITE_API_URL
 | Audit Trail UI (журнал дій, фільтри, IP) | ✅ |
 | Dashboard — графік електроенергії (останні 6 місяців) | ✅ |
 | Електроенергія — MoM порівняння з дельтою % | ✅ |
+| Газ (облік по місяцях + ВТВ + аналітика 5 блоків) | ✅ |
 
 ### 🚀 Запуск локально
 
@@ -475,6 +482,38 @@ npm start
 - ✅ Grouped BarChart: для кожного споживача + Всього — два стовпці поряд
 - ✅ Дельта під графіком: значення + % зміни, ▲ червоний (більше) / ▼ зелений (менше)
 
+---
+
+### Сесія 19: Gas module (2026-03-09)
+
+#### 44. Модуль Газ — повний
+- ✅ `backend/app/models/gas.py` — GasRecord (month unique, consumption nullable, vtv nullable)
+  - consumption nullable: влітку немає сушіння
+  - vtv nullable: не завжди є дані від газової служби
+  - total = consumption + vtv (рахується в _calc)
+- ✅ `backend/app/api/v1/gas.py`:
+  - GET / — список всіх місяців
+  - GET /{month} — дані за місяць (404 якщо немає)
+  - POST /save — зберегти/оновити (admin only)
+  - DELETE /{month} — видалити (admin only, 204)
+- ✅ `frontend/src/api/gas.js` — listMonths, getMonth, save, deleteMonth
+- ✅ `frontend/src/pages/gas/GasPage.jsx`:
+  - Admin: 2 вкладки (введення + аналітика); інші — одразу аналітика
+  - Поля: Споживання (nullable) + ВТВ (nullable, з підказкою)
+  - `n(v)` — підтримка коми як десяткового, повертає null якщо порожньо
+  - Підсумок праворуч: Споживання / ВТВ (якщо є) / Всього
+- ✅ `frontend/src/pages/gas/GasAnalytics.jsx` — 5 блоків:
+  1. BarChart динаміки (Споживання + ВТВ якщо є) з фільтром року
+  2. Помісячна таблиця + Excel export
+  3. MoM порівняння — grouped BarChart + дельта % (▲/▼)
+  4. YoY порівняння двох років
+  5. Сезонність — LineChart середнього по місяцях (показується від 3+ місяців)
+- ✅ Меню: admin/manager/accountant, `/gas`, іконка LocalFireDepartment
+
+**БД**: `gas_records` (id, month unique, consumption NUMERIC(12,2) nullable, vtv NUMERIC(10,4) nullable, created_by FK, timestamps)
+
+---
+
 #### Fix: PieChart мітка "Млин" обрізалась
 - ✅ height 250→280, margin top:30, outerRadius 100→90
 
@@ -536,6 +575,10 @@ npm start
 
 ---
 
+#### ✅ Газ — ВИКОНАНО (commit bf7cbaf)
+
+---
+
 #### Пріоритет 1 — Імпорт з Excel
 **Що потрібно:**
 - [ ] Backend: `POST /api/v1/products/import` — читає xlsx, створює товари пакетно
@@ -572,6 +615,6 @@ npm start
 
 ---
 
-**Останнє оновлення**: 2026-03-09 (сесія 18 — Audit Trail UI, Dashboard electricity, MoM chart)
-**Версія**: 0.9.1
+**Останнє оновлення**: 2026-03-09 (сесія 19 — Gas module)
+**Версія**: 0.9.2
 **Статус**: ✅ Production Live | CI/CD ✅ | Моніторинг ✅

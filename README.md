@@ -1,6 +1,6 @@
 # Agro ERP — Система обліку для агробізнесу
 
-Система обліку витратних матеріалів та запчастин. Версія **0.9.1**.
+Система обліку витратних матеріалів та запчастин. Версія **0.9.2**.
 
 **Стек:** Python 3.12 + FastAPI · React 18 + MUI · SQLite (локально) / PostgreSQL (production)
 **Деплой:** Render (backend) · Vercel (frontend) · Neon.tech (PostgreSQL)
@@ -31,6 +31,7 @@
 | Електроенергія (облік по місяцях + аналітика + дизельний генератор) | ✅ |
 | Звіт списань по підрозділах (новий таб "Списання" у звітах) | ✅ |
 | Audit Trail UI — журнал дій (login, підтвердження, IP) | ✅ |
+| Газ (облік по місяцях + ВТВ + аналітика 5 блоків) | ✅ |
 
 **Підрозділи (13):** Основний склад, Склад готової продукції, Млин, Елеватор,
 Цех паливної гранули, Адміністрація, Вагова, Охорона, Лабораторія,
@@ -130,6 +131,7 @@ elev/
 | `transport.py` | CRUD транспорту + auto-department |
 | `electricity.py` | GET /{month}, POST /save (admin), GET / (список місяців) |
 | `audit.py` | GET / (фільтри), GET /meta — тільки admin |
+| `gas.py` | GET /, GET /{month}, POST /save (admin), DELETE /{month} |
 
 ### Frontend — сторінки
 
@@ -148,6 +150,7 @@ elev/
 | Транспорт | `/transport` |
 | Електроенергія | `/electricity` |
 | Журнал змін | `/audit` |
+| Газ | `/gas` |
 | Користувачі | `/users` |
 | Логін | `/login` |
 
@@ -193,10 +196,11 @@ VITE_API_URL              # URL бекенду для фронтенду
 `purchases`, `purchase_items`, `inventory`, `inventory_transactions`,
 `transfers`, `transfer_items`, `writeoffs`, `writeoff_items`,
 `inventory_counts`, `inventory_count_items`, `audit_log`, `transport_units`,
-`electricity_records`
+`electricity_records`, `gas_records`
 
 > `transport_units.department_id` → FK на `departments.id` (кожен ТЗ має свій підрозділ)
 > `electricity_records.gen_start/gen_end` — nullable (генератор не завжди працює)
+> `gas_records.consumption/vtv` — обидва nullable (немає сушіння влітку, ВТВ не завжди є)
 
 ---
 
