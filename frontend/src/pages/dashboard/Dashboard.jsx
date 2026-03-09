@@ -27,6 +27,7 @@ import {
   Telegram as TelegramIcon,
   SwapHoriz as TransferIcon,
   ElectricBolt as ElectricBoltIcon,
+  LocalFireDepartment as GasIcon,
 } from '@mui/icons-material'
 import {
   LineChart,
@@ -47,6 +48,7 @@ import { notificationsAPI } from '../../api/notifications'
 import { purchasesAPI } from '../../api/purchases'
 import { transfersAPI } from '../../api/transfers'
 import { electricityAPI } from '../../api/electricity'
+import { gasAPI } from '../../api/gas'
 
 const TRANSACTION_TYPE_UK = {
   receipt: 'Прихід',
@@ -73,6 +75,7 @@ const Dashboard = () => {
   const [recentPurchases, setRecentPurchases] = useState([])
   const [recentTransfers, setRecentTransfers] = useState([])
   const [electricityData, setElectricityData] = useState([])
+  const [gasData, setGasData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [notifLoading, setNotifLoading] = useState(false)
@@ -104,12 +107,13 @@ const Dashboard = () => {
   const loadDashboard = async () => {
     try {
       setLoading(true)
-      const [dashboardData, lowStock, purchases, transfers, elecResult] = await Promise.allSettled([
+      const [dashboardData, lowStock, purchases, transfers, elecResult, gasResult] = await Promise.allSettled([
         reportsAPI.getDashboard(),
         inventoryAPI.getLowStock(),
         purchasesAPI.list({ limit: 5 }),
         transfersAPI.list({ limit: 5 }),
         electricityAPI.listMonths(),
+        gasAPI.listMonths(),
       ])
       if (dashboardData.status === 'fulfilled') setData(dashboardData.value)
       else throw new Error(dashboardData.reason?.message || 'Failed to load dashboard')
@@ -127,10 +131,24 @@ const Dashboard = () => {
               'Млин': Math.round(r.mlyn_total),
               'Пелетний': Math.round(r.palet_kwh),
               'Елеватор': Math.round(r.elevator_kwh),
-              _total: Math.round(r.total_kwh),
             }
           })
         setElectricityData(last6)
+      }
+      if (gasResult.status === 'fulfilled') {
+        const last6 = [...gasResult.value]
+          .filter(r => r.consumption != null || r.vtv != null)
+          .sort((a, b) => a.month.localeCompare(b.month))
+          .slice(-6)
+          .map(r => {
+            const [y, mo] = r.month.split('-')
+            return {
+              name: `${MONTHS_UK[parseInt(mo) - 1]}'${y.slice(2)}`,
+              'Споживання': r.consumption != null ? Math.round(r.consumption) : null,
+              ...(r.vtv != null ? { 'ВТВ': parseFloat(Number(r.vtv).toFixed(2)) } : {}),
+            }
+          })
+        setGasData(last6)
       }
     } catch (err) {
       setError(err.message || 'Failed to load dashboard')
@@ -302,31 +320,57 @@ const Dashboard = () => {
         </Grid>
       </Grid>
 
-      {/* Electricity chart */}
-      {electricityData.length > 0 && (
-        <Paper sx={{ p: 2, mb: 2 }}>
-          <Box display="flex" alignItems="center" gap={1} mb={1}>
-            <ElectricBoltIcon color="warning" fontSize="small" />
-            <Typography variant="h6">Електроенергія — останні місяці</Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-              кВт·год
-            </Typography>
-          </Box>
-          <ResponsiveContainer width="99%" height={220}>
-            <BarChart data={electricityData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-              <YAxis tickFormatter={v => (v / 1000).toFixed(0) + 'k'} tick={{ fontSize: 12 }} width={40} />
-              <Tooltip
-                formatter={(v, name) => [`${Number(v).toLocaleString('uk-UA')} кВт·год`, name]}
-              />
-              <Legend />
-              <Bar dataKey="Млин" stackId="a" fill="#1976d2" />
-              <Bar dataKey="Пелетний" stackId="a" fill="#e65100" />
-              <Bar dataKey="Елеватор" stackId="a" fill="#2e7d32" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </Paper>
+      {/* Energy charts row */}
+      {(electricityData.length > 0 || gasData.length > 0) && (
+        <Grid container spacing={2} sx={{ mb: 2 }}>
+          {electricityData.length > 0 && (
+            <Grid item xs={12} lg={gasData.length > 0 ? 7 : 12}>
+              <Paper sx={{ p: 2 }}>
+                <Box display="flex" alignItems="center" gap={1} mb={1}>
+                  <ElectricBoltIcon color="warning" fontSize="small" />
+                  <Typography variant="h6">Електроенергія — останні місяці</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>кВт·год</Typography>
+                </Box>
+                <ResponsiveContainer width="99%" height={220}>
+                  <BarChart data={electricityData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis tickFormatter={v => (v / 1000).toFixed(0) + 'k'} tick={{ fontSize: 12 }} width={40} />
+                    <Tooltip formatter={(v, name) => [`${Number(v).toLocaleString('uk-UA')} кВт·год`, name]} />
+                    <Legend />
+                    <Bar dataKey="Млин" stackId="a" fill="#1976d2" />
+                    <Bar dataKey="Пелетний" stackId="a" fill="#e65100" />
+                    <Bar dataKey="Елеватор" stackId="a" fill="#2e7d32" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Paper>
+            </Grid>
+          )}
+          {gasData.length > 0 && (
+            <Grid item xs={12} lg={electricityData.length > 0 ? 5 : 12}>
+              <Paper sx={{ p: 2 }}>
+                <Box display="flex" alignItems="center" gap={1} mb={1}>
+                  <GasIcon color="primary" fontSize="small" />
+                  <Typography variant="h6">Газ — останні місяці</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>м³</Typography>
+                </Box>
+                <ResponsiveContainer width="99%" height={220}>
+                  <BarChart data={gasData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis tickFormatter={v => v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v} tick={{ fontSize: 12 }} width={40} />
+                    <Tooltip formatter={(v, name) => v != null ? [`${Number(v).toLocaleString('uk-UA')} м³`, name] : ['—', name]} />
+                    <Legend />
+                    <Bar dataKey="Споживання" fill="#1565c0" radius={[3, 3, 0, 0]} />
+                    {gasData.some(d => d['ВТВ'] != null) && (
+                      <Bar dataKey="ВТВ" fill="#e65100" radius={[3, 3, 0, 0]} />
+                    )}
+                  </BarChart>
+                </ResponsiveContainer>
+              </Paper>
+            </Grid>
+          )}
+        </Grid>
       )}
 
       {/* Tables row */}
