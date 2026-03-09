@@ -1,6 +1,6 @@
 # Agro ERP — Система обліку для агробізнесу
 
-Система обліку витратних матеріалів та запчастин. Версія **0.9.2**.
+Система обліку витратних матеріалів та запчастин. Версія **0.9.3**.
 
 **Стек:** Python 3.12 + FastAPI · React 18 + MUI · SQLite (локально) / PostgreSQL (production)
 **Деплой:** Render (backend) · Vercel (frontend) · Neon.tech (PostgreSQL)
