@@ -88,12 +88,14 @@ def start_scheduler():
         CronTrigger(day_of_week="mon", hour=9, minute=0, timezone="Europe/Kiev"),
         id="weekly_stock_report",
         replace_existing=True,
+        misfire_grace_time=3600,
     )
     scheduler.add_job(
         job_friday_check,
         CronTrigger(day_of_week="fri", hour=9, minute=0, timezone="Europe/Kiev"),
         id="monthly_friday_check",
         replace_existing=True,
+        misfire_grace_time=3600,
     )
     scheduler.start()
     logger.info("Scheduler started: weekly Mon 9:00 + last-Friday monthly 9:00 (Europe/Kiev)")

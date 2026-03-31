@@ -117,12 +117,16 @@ def get_dashboard(
     # === Monthly Purchases (last 6 months) ===
     monthly_purchases = []
     for i in range(5, -1, -1):
-        month_date = today - timedelta(days=30 * i)
-        first_day = month_date.replace(day=1)
-        if month_date.month == 12:
-            last_day = month_date.replace(year=month_date.year + 1, month=1, day=1) - timedelta(days=1)
+        month = today.month - i
+        year = today.year
+        while month <= 0:
+            month += 12
+            year -= 1
+        first_day = today.replace(year=year, month=month, day=1)
+        if month == 12:
+            last_day = first_day.replace(year=year + 1, month=1, day=1) - timedelta(days=1)
         else:
-            last_day = month_date.replace(month=month_date.month + 1, day=1) - timedelta(days=1)
+            last_day = first_day.replace(month=month + 1, day=1) - timedelta(days=1)
 
         total = db.query(func.sum(Purchase.total_amount)).filter(
             Purchase.date >= first_day,
