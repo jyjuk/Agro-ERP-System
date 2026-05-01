@@ -325,7 +325,7 @@ export default function ElectricityAnalytics({ records }) {
                 <TableCell align="right">Всього</TableCell>
                 <TableCell align="right">Млин</TableCell>
                 <TableCell align="right">Пелетний</TableCell>
-                <TableCell align="right">Елеватор</TableCell>
+                <TableCell align="right">Елеватор + Офіс</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
