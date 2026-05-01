@@ -91,7 +91,7 @@ export default function ElectricityAnalytics({ records }) {
         name: shortLabel(r.month) + (r.gen_kwh > 0 ? ' ⚡' : ''),
         'Млин': Math.round(r.mlyn_total),
         'Пелетний': Math.round(r.palet_kwh),
-        'Елеватор': Math.round(r.elevator_kwh),
+        'Елеватор + Офіс': Math.round(r.elevator_kwh),
         _gen_kwh: r.gen_kwh || 0,
       })),
     [records, yearFilter]
@@ -104,7 +104,7 @@ export default function ElectricityAnalytics({ records }) {
     return [
       { name: 'Млин', value: Math.round(r.mlyn_total) },
       { name: 'Пелетний', value: Math.round(r.palet_kwh) },
-      { name: 'Елеватор', value: Math.round(r.elevator_kwh) },
+      { name: 'Елеватор + Офіс', value: Math.round(r.elevator_kwh) },
     ]
   }, [records, pieMonth])
 
@@ -149,7 +149,7 @@ export default function ElectricityAnalytics({ records }) {
     const rows = [
       { name: 'Млин',     [lbl1]: r1 ? Math.round(r1.mlyn_total)  : null, [lbl2]: r2 ? Math.round(r2.mlyn_total)  : null },
       { name: 'Пелетний', [lbl1]: r1 ? Math.round(r1.palet_kwh)   : null, [lbl2]: r2 ? Math.round(r2.palet_kwh)   : null },
-      { name: 'Елеватор', [lbl1]: r1 ? Math.round(r1.elevator_kwh): null, [lbl2]: r2 ? Math.round(r2.elevator_kwh): null },
+      { name: 'Елеватор + Офіс', [lbl1]: r1 ? Math.round(r1.elevator_kwh): null, [lbl2]: r2 ? Math.round(r2.elevator_kwh): null },
       { name: 'Всього',   [lbl1]: r1 ? Math.round(r1.total_kwh)   : null, [lbl2]: r2 ? Math.round(r2.total_kwh)   : null },
     ]
     return { rows, lbl1, lbl2, r1, r2 }
@@ -173,7 +173,7 @@ export default function ElectricityAnalytics({ records }) {
   // Експорт таблиці
   const handleExport = () => {
     const wb = XLSX.utils.book_new()
-    const headers = ['Місяць', 'КТП', 'Генератор', 'Всього', 'Млин', 'Пелетний', 'Елеватор']
+    const headers = ['Місяць', 'КТП', 'Генератор', 'Всього', 'Млин', 'Пелетний', 'Елеватор + Офіс']
     const rows = []
     tableYears.forEach(y => {
       tableByYear[y].forEach((r, i) => {
@@ -231,7 +231,7 @@ export default function ElectricityAnalytics({ records }) {
             <Legend />
             <Bar dataKey="Млин" stackId="a" fill={COLORS.mlyn} />
             <Bar dataKey="Пелетний" stackId="a" fill={COLORS.palet} />
-            <Bar dataKey="Елеватор" stackId="a" fill={COLORS.elevator} radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Елеватор + Офіс" stackId="a" fill={COLORS.elevator} radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
         {hasGenerator && (
@@ -408,7 +408,7 @@ export default function ElectricityAnalytics({ records }) {
                 {[
                   { label: 'Млин',     v1: momData.r1.mlyn_total,   v2: momData.r2.mlyn_total   },
                   { label: 'Пелетний', v1: momData.r1.palet_kwh,    v2: momData.r2.palet_kwh    },
-                  { label: 'Елеватор', v1: momData.r1.elevator_kwh, v2: momData.r2.elevator_kwh },
+                  { label: 'Елеватор + Офіс', v1: momData.r1.elevator_kwh, v2: momData.r2.elevator_kwh },
                   { label: 'Всього',   v1: momData.r1.total_kwh,    v2: momData.r2.total_kwh    },
                 ].map(({ label, v1, v2 }) => {
                   const delta = v1 > 0 ? ((v2 - v1) / v1 * 100) : null
