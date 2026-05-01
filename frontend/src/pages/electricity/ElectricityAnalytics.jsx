@@ -26,6 +26,19 @@ const shortLabel = (m) => {
   return `${MONTHS_UK[parseInt(mo) - 1]}'${y.slice(2)}`
 }
 
+function distributePercents(values) {
+  const total = values.reduce((s, v) => s + v, 0)
+  if (!total) return values.map(() => 0)
+  const raws = values.map(v => v / total * 1000)
+  const floors = raws.map(Math.floor)
+  const remainders = raws.map((r, i) => r - floors[i])
+  let extra = 1000 - floors.reduce((s, v) => s + v, 0)
+  const order = remainders.map((_, i) => i).sort((a, b) => remainders[b] - remainders[a])
+  const result = [...floors]
+  order.forEach((idx, i) => { if (i < extra) result[idx]++ })
+  return result.map(v => v / 10)
+}
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   const genKwh = payload[0]?.payload?._gen_kwh || 0
@@ -107,6 +120,8 @@ export default function ElectricityAnalytics({ records }) {
       { name: 'Елеватор + Офіс', value: Math.round(r.elevator_kwh) },
     ]
   }, [records, pieMonth])
+
+  const pieAdjPcts = useMemo(() => distributePercents(pieData.map(d => d.value)), [pieData])
 
   // 3. Таблиця по роках
   const tableByYear = useMemo(() => {
@@ -260,7 +275,7 @@ export default function ElectricityAnalytics({ records }) {
             <ResponsiveContainer width="100%" height={280}>
               <PieChart margin={{ top: 30, right: 30, bottom: 10, left: 30 }}>
                 <Pie data={pieData} cx="50%" cy="50%" outerRadius={90}
-                  dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
+                  dataKey="value" label={({ name, index }) => `${name} ${pieAdjPcts[index]}%`}
                 >
                   {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
                 </Pie>
@@ -279,21 +294,18 @@ export default function ElectricityAnalytics({ records }) {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {pieData.map((row, i) => {
-                    const total = pieData.reduce((s, r) => s + r.value, 0)
-                    return (
-                      <TableRow key={row.name}>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: PIE_COLORS[i] }} />
-                            {row.name}
-                          </Box>
-                        </TableCell>
-                        <TableCell align="right">{fmtNum(row.value)}</TableCell>
-                        <TableCell align="right">{total ? (row.value / total * 100).toFixed(1) + '%' : '—'}</TableCell>
-                      </TableRow>
-                    )
-                  })}
+                  {pieData.map((row, i) => (
+                    <TableRow key={row.name}>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: PIE_COLORS[i] }} />
+                          {row.name}
+                        </Box>
+                      </TableCell>
+                      <TableCell align="right">{fmtNum(row.value)}</TableCell>
+                      <TableCell align="right">{pieAdjPcts.length ? pieAdjPcts[i] + '%' : '—'}</TableCell>
+                    </TableRow>
+                  ))}
                   <TableRow sx={{ bgcolor: 'grey.50' }}>
                     <TableCell><strong>Загальне</strong></TableCell>
                     <TableCell align="right"><strong>{fmtNum(pieData.reduce((s, r) => s + r.value, 0))}</strong></TableCell>
